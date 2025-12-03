@@ -1,15 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { parseCSV } from './utils/csvParser';
 import { saveFile, getAllFiles, deleteFile, clearAllFiles } from './utils/storage';
 import { FileRecord } from './types';
 import Dashboard from './components/Dashboard';
-import { Trash2, Upload, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/Card';
 import { Button } from './components/ui/Button';
+import { MultiSelect } from './components/ui/MultiSelect';
 
 function App() {
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [activeFile, setActiveFile] = useState<FileRecord | null>(null);
+  
+  // Global Filters
+  const [showIncome, setShowIncome] = useState(false);
+  const [showExpense, setShowExpense] = useState(true);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
+
+  // Get unique categories for the filter dropdown
+  const allCategories = useMemo(() => {
+    if (!activeFile) return [];
+    // Extract unique Groups
+    const groups = new Set(activeFile.data.map(t => t.categoryGroup));
+    return Array.from(groups).sort();
+  }, [activeFile]);
 
   useEffect(() => {
     loadHistory();
@@ -35,6 +49,7 @@ function App() {
         await saveFile(record);
         await loadHistory();
         setActiveFile(record);
+        setExcludedCategories([]); // Reset filters on new file load
       } catch (err) {
         console.error("Parse error", err);
         alert("Error parsing file. Check format.");
@@ -63,20 +78,78 @@ function App() {
     return (
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => setActiveFile(null)} 
-            className="pl-0 hover:pl-2 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Files
-          </Button>
-          <Dashboard data={activeFile.data} fileName={activeFile.fileName} />
+          
+          {/* Global Top Bar */}
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+             <div className="flex items-center gap-4 w-full md:w-auto">
+                <Button 
+                  onClick={() => setActiveFile(null)} 
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm px-3 aspect-square flex items-center justify-center shrink-0"
+                  title="Return to File Selection"
+                >
+                  <Home size={20} />
+                </Button>
+                
+                <div className="h-8 w-px bg-slate-200 shrink-0" />
+
+                <div className="min-w-0">
+                  <h2 className="font-bold text-slate-800 text-sm truncate">{activeFile.fileName}</h2>
+                  <p className="text-xs text-slate-500">{activeFile.rowCount} transactions</p>
+                </div>
+             </div>
+
+             {/* Filter Controls */}
+             <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
+                <MultiSelect 
+                  label="Filter Categories" 
+                  options={allCategories} 
+                  selected={excludedCategories} 
+                  onChange={setExcludedCategories} 
+                />
+
+                <div className="h-8 w-px bg-slate-200 hidden md:block" />
+
+                <div className="flex p-1 bg-slate-100/50 border border-slate-200 rounded-lg">
+                    <button
+                      onClick={() => setShowIncome(!showIncome)}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        showIncome 
+                          ? 'bg-green-100 text-green-700 shadow-sm border border-green-200' 
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                      }`}
+                    >
+                      <TrendingUp size={16} />
+                      <span className="hidden sm:inline">Income</span>
+                    </button>
+                    <div className="w-1" />
+                    <button
+                      onClick={() => setShowExpense(!showExpense)}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        showExpense 
+                          ? 'bg-red-100 text-red-700 shadow-sm border border-red-200' 
+                          : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                      }`}
+                    >
+                      <TrendingDown size={16} />
+                      <span className="hidden sm:inline">Expenses</span>
+                    </button>
+                </div>
+             </div>
+          </div>
+
+          <Dashboard 
+            data={activeFile.data} 
+            fileName={activeFile.fileName} 
+            showIncome={showIncome}
+            showExpense={showExpense}
+            excludedCategories={excludedCategories}
+          />
         </div>
       </div>
     );
   }
 
+  // ... (Upload Screen Render remains the same)
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-4">
       <Card className="w-full max-w-2xl shadow-xl">
@@ -89,8 +162,6 @@ function App() {
           )} 
         />
         <CardContent className="space-y-8">
-          
-          {/* Upload Area */}
           <div className="group border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:bg-slate-50 hover:border-blue-400 transition cursor-pointer relative">
             <input type="file" accept=".csv" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             <div className="flex flex-col items-center pointer-events-none">
@@ -102,10 +173,8 @@ function App() {
             </div>
           </div>
 
-          {/* History */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Previous Imports</h2>
-            
             {files.length === 0 && (
               <div className="text-center py-8 text-slate-400 italic bg-slate-50 rounded-lg border border-slate-100">
                 No files found. Upload one to get started.

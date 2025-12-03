@@ -10,6 +10,9 @@ import { Calendar, PieChart, TrendingUp } from 'lucide-react';
 interface Props {
   data: Transaction[];
   fileName: string;
+  showIncome: boolean;
+  showExpense: boolean;
+  excludedCategories: string[];
 }
 
 const TIME_FRAMES: TimeFrame[] = [
@@ -19,7 +22,7 @@ const TIME_FRAMES: TimeFrame[] = [
   'This Year', 'Last Year'
 ];
 
-const Dashboard = ({ data, fileName }: Props) => {
+const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories }: Props) => {
   const [view, setView] = useState<'drill' | 'trend'>('drill');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('This Month');
   const [customStart, setCustomStart] = useState('');
@@ -27,6 +30,7 @@ const Dashboard = ({ data, fileName }: Props) => {
 
   // Filter Data Logic
   const filteredData = useMemo(() => {
+    // 1. Date Filter
     const allDates = data.map(t => t.date);
     const validDates = new Set(
       filterByDate(
@@ -36,88 +40,107 @@ const Dashboard = ({ data, fileName }: Props) => {
         customEnd ? new Date(customEnd) : undefined
       )
     );
-    return data.filter(t => validDates.has(t.date));
-  }, [data, timeFrame, customStart, customEnd]);
+
+    const excludedSet = new Set(excludedCategories);
+
+    return data.filter(t => {
+      // Date Check
+      if (!validDates.has(t.date)) return false;
+
+      // Category Exclusion Check
+      if (excludedSet.has(t.categoryGroup)) return false;
+
+      // Type Check
+      if (t.amount < 0 && !showExpense) return false;
+      if (t.amount >= 0 && !showIncome) return false;
+
+      return true;
+    });
+  }, [data, timeFrame, customStart, customEnd, showIncome, showExpense, excludedCategories]);
+
+  // Calculate totals for the summary view
+  const { totalIncome, totalExpense } = useMemo(() => {
+    return filteredData.reduce((acc, t) => {
+      if (t.amount >= 0) acc.totalIncome += t.amount;
+      else acc.totalExpense += Math.abs(t.amount);
+      return acc;
+    }, { totalIncome: 0, totalExpense: 0 });
+  }, [filteredData]);
 
   return (
     <div className="space-y-6">
-      {/* Header & View Switcher */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">{fileName}</h1>
-          <p className="text-slate-500 text-sm">
-            {filteredData.length} transactions found in period
-          </p>
-        </div>
-        
-        <div className="flex p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-          <button 
-            onClick={() => setView('drill')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              view === 'drill' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <PieChart size={16} />
-            Drill-Down
-          </button>
-          <button 
-            onClick={() => setView('trend')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              view === 'trend' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <TrendingUp size={16} />
-            Trends
-          </button>
-        </div>
-      </div>
-
       {/* Controls Card */}
       <Card>
         <CardContent className="py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 mr-2 text-slate-500">
-              <Calendar size={18} />
-              <span className="text-sm font-semibold uppercase tracking-wide">Time Frame:</span>
-            </div>
+          <div className="flex flex-col md:flex-row justify-between gap-4">
             
-            {TIME_FRAMES.map(tf => (
-              <Button
-                key={tf}
-                size="sm"
-                variant={timeFrame === tf ? 'primary' : 'secondary'}
-                onClick={() => setTimeFrame(tf)}
-                className="whitespace-nowrap"
-              >
-                {tf}
-              </Button>
-            ))}
-            
-            <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block" />
-
-            <Button
-              size="sm"
-              variant={timeFrame === 'Custom' ? 'primary' : 'secondary'}
-              onClick={() => setTimeFrame('Custom')}
-            >
-              Custom
-            </Button>
-
-            {timeFrame === 'Custom' && (
-              <div className="flex gap-2 items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 ml-2 animate-in fade-in slide-in-from-left-4">
-                <input 
-                  type="date" 
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
-                  onChange={e => setCustomStart(e.target.value)} 
-                />
-                <span className="text-slate-400 text-xs">to</span>
-                <input 
-                  type="date" 
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
-                  onChange={e => setCustomEnd(e.target.value)} 
-                />
+            {/* Time Frame Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 mr-2 text-slate-500">
+                <Calendar size={18} />
+                <span className="text-sm font-semibold uppercase tracking-wide">Time Frame:</span>
               </div>
-            )}
+              
+              {TIME_FRAMES.map(tf => (
+                <Button
+                  key={tf}
+                  size="sm"
+                  variant={timeFrame === tf ? 'primary' : 'secondary'}
+                  onClick={() => setTimeFrame(tf)}
+                  className="whitespace-nowrap"
+                >
+                  {tf}
+                </Button>
+              ))}
+              
+              <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block" />
+
+              <Button
+                size="sm"
+                variant={timeFrame === 'Custom' ? 'primary' : 'secondary'}
+                onClick={() => setTimeFrame('Custom')}
+              >
+                Custom
+              </Button>
+
+              {timeFrame === 'Custom' && (
+                <div className="flex gap-2 items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 ml-2 animate-in fade-in slide-in-from-left-4">
+                  <input 
+                    type="date" 
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
+                    onChange={e => setCustomStart(e.target.value)} 
+                  />
+                  <span className="text-slate-400 text-xs">to</span>
+                  <input 
+                    type="date" 
+                    className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
+                    onChange={e => setCustomEnd(e.target.value)} 
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex p-1 bg-slate-100 rounded-lg shadow-inner self-start md:self-center">
+              <button 
+                onClick={() => setView('drill')}
+                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  view === 'drill' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <PieChart size={16} />
+                Drill-Down
+              </button>
+              <button 
+                onClick={() => setView('trend')}
+                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  view === 'trend' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <TrendingUp size={16} />
+                Trends
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -126,7 +149,12 @@ const Dashboard = ({ data, fileName }: Props) => {
       <Card className="min-h-[600px] flex flex-col">
         <CardHeader 
           title={view === 'drill' ? "Category Breakdown" : "Spending Trends"} 
-          action={<span className="text-xs text-slate-400 font-mono">LIVE PREVIEW</span>}
+          action={
+            <div className="flex gap-4 text-sm">
+               {showIncome && <span className="text-green-600 font-medium">Income: ${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+               {showExpense && <span className="text-red-600 font-medium">Expenses: ${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+            </div>
+          }
         />
         <CardContent className="flex-1">
           {view === 'drill' 
