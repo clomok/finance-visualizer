@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3050:8080"
+    restart: always
+    read_only: true
+    # We only need /tmp to be writable.
+    # The unprivileged image writes PID and cache here.
+    tmpfs:
+      - /tmp
