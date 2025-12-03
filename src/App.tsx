@@ -17,12 +17,22 @@ function App() {
   const [showExpense, setShowExpense] = useState(true);
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
 
-  // Get unique categories for the filter dropdown
+  // Get ALL unique categories (Groups AND Sub-categories) for the filter dropdown
   const allCategories = useMemo(() => {
     if (!activeFile) return [];
-    // Extract unique Groups
-    const groups = new Set(activeFile.data.map(t => t.categoryGroup));
-    return Array.from(groups).sort();
+    
+    const uniqueSet = new Set<string>();
+    
+    activeFile.data.forEach(t => {
+      // Add the top-level Group (e.g., "Food & Dining")
+      if (t.categoryGroup) uniqueSet.add(t.categoryGroup);
+      
+      // Add the specific Sub-Category (e.g., "Food & Dining - Fast Food")
+      if (t.category) uniqueSet.add(t.category);
+    });
+
+    // Sort alphabetically so Groups and their Subs appear together
+    return Array.from(uniqueSet).sort();
   }, [activeFile]);
 
   useEffect(() => {
@@ -149,7 +159,7 @@ function App() {
     );
   }
 
-  // ... (Upload Screen Render remains the same)
+  // Upload Screen (unchanged)
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-4">
       <Card className="w-full max-w-2xl shadow-xl">

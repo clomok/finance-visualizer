@@ -48,7 +48,10 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
       if (!validDates.has(t.date)) return false;
 
       // Category Exclusion Check
+      // Block if the Group is excluded (e.g. "Food & Dining")
       if (excludedSet.has(t.categoryGroup)) return false;
+      // Block if the specific Sub-Category is excluded (e.g. "Food & Dining - Fast Food")
+      if (excludedSet.has(t.category)) return false;
 
       // Type Check
       if (t.amount < 0 && !showExpense) return false;
