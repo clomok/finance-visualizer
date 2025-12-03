@@ -72,6 +72,7 @@ Remove-Item package-lock.json -Force -ErrorAction SilentlyContinue
 # 4. Re-install and Re-build
 npm install
 docker-compose up --build
+```
 
 ## Architecture
 
