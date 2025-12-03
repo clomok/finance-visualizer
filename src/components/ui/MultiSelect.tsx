@@ -23,9 +23,6 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
   }, []);
 
   const toggleOption = (option: string) => {
-    // Logic: If we are toggling a Parent, we don't need to touch the children 
-    // because the UI (and Filter Logic) handles the inheritance automatically.
-    
     if (selected.includes(option)) {
       onChange(selected.filter(item => item !== option));
     } else {
@@ -38,6 +35,10 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
     onChange([]);
     setIsOpen(false);
   };
+
+  // Variables to track grouping for zebra-striping logic during render
+  let lastParent = '';
+  let subIndex = 0;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -75,31 +76,50 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
             )}
           </div>
 
-          <div className="py-1">
+          <div className="py-0">
             {options.map(option => {
-              // 1. Detect Hierarchy
+              // 1. Detect Hierarchy & Grouping
               const isSub = option.includes(' - ');
-              const parentName = isSub ? option.split(' - ')[0] : null;
+              const parentName = isSub ? option.split(' - ')[0] : option;
 
-              // 2. Determine Selection State
+              // Reset counter if we hit a new group
+              if (parentName !== lastParent) {
+                lastParent = parentName;
+                subIndex = 0;
+              }
+              if (isSub) subIndex++;
+
+              // 2. Logic for Selection
               const isExplicitlySelected = selected.includes(option);
-              const isParentSelected = parentName ? selected.includes(parentName) : false;
-              
-              // 3. Effective State (Visible State)
-              // It is checked if YOU clicked it OR if your PARENT is clicked
+              const isParentSelected = isSub ? selected.includes(parentName) : false;
               const isEffectivelySelected = isExplicitlySelected || isParentSelected;
-
-              // 4. Interaction State
-              // If parent is selected, the child is "Locked" (you can't uncheck it without unchecking parent)
               const isDisabled = isParentSelected;
+
+              // 3. Styling Logic
+              // Parents get a dark, solid background.
+              // Subs get alternating stripes.
+              let bgClass = 'bg-white';
+              if (!isSub) {
+                // Parent Header Style
+                bgClass = 'bg-slate-200/80 border-b border-white'; 
+              } else {
+                // Zebra Stripe Logic for Subs
+                bgClass = subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+              }
+
+              // Selected State Override (Red Tint)
+              if (isEffectivelySelected) {
+                bgClass = 'bg-red-50/80'; 
+              }
 
               return (
                 <label 
                   key={option} 
                   className={`
                     group flex items-center gap-3 px-3 py-2 transition-colors relative
-                    ${isEffectivelySelected ? 'bg-red-50/50' : 'hover:bg-slate-50'}
-                    ${isSub ? 'pl-8' : 'bg-slate-50/30'} 
+                    ${bgClass}
+                    ${!isSub ? 'hover:bg-slate-300' : 'hover:bg-blue-50'}
+                    ${isSub ? 'pl-8' : ''} 
                     ${isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
                   `}
                 >
@@ -107,10 +127,9 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
                     w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0
                     ${isEffectivelySelected 
                       ? 'bg-red-500 border-red-500 text-white' 
-                      : 'border-slate-300 bg-white group-hover:border-blue-400'
+                      : 'border-slate-400 bg-white group-hover:border-blue-400'
                     }
                   `}>
-                    {/* Icon Logic: Show Check normally, but Lock if inherited from parent */}
                     {isDisabled 
                       ? <Lock size={8} strokeWidth={4} className="opacity-75" /> 
                       : isEffectivelySelected && <Check size={10} strokeWidth={4} />
@@ -127,7 +146,7 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
                   
                   <span className={`
                     text-sm select-none truncate
-                    ${isSub ? 'text-slate-500 font-normal' : 'text-slate-800 font-bold'}
+                    ${isSub ? 'text-slate-600 font-normal' : 'text-slate-900 font-extrabold tracking-tight'}
                     ${isEffectivelySelected ? 'line-through opacity-50' : ''}
                   `}>
                     {option}
