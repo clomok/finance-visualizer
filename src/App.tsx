@@ -3,8 +3,9 @@ import { parseCSV } from './utils/csvParser';
 import { saveFile, getAllFiles, deleteFile, clearAllFiles } from './utils/storage';
 import { FileRecord } from './types';
 import Dashboard from './components/Dashboard';
-import { Trash2, Upload, FileSpreadsheet } from 'lucide-react';
-import './index.css';
+import { Trash2, Upload, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { Card, CardHeader, CardContent } from './components/ui/Card';
+import { Button } from './components/ui/Button';
 
 function App() {
   const [files, setFiles] = useState<FileRecord[]>([]);
@@ -41,7 +42,8 @@ function App() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (confirm("Are you sure you want to delete this file?")) {
       await deleteFile(id);
       loadHistory();
@@ -59,64 +61,91 @@ function App() {
 
   if (activeFile) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4">
-        <button 
-          onClick={() => setActiveFile(null)} 
-          className="mb-4 text-blue-600 hover:underline">
-          &larr; Back to File Selection
-        </button>
-        <Dashboard data={activeFile.data} fileName={activeFile.fileName} />
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveFile(null)} 
+            className="pl-0 hover:pl-2 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Files
+          </Button>
+          <Dashboard data={activeFile.data} fileName={activeFile.fileName} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-8">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
-        <h1 className="text-3xl font-bold mb-6 text-slate-800">Finance Visualizer</h1>
-        
-        {/* Upload Area */}
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 text-center hover:bg-slate-50 transition mb-8">
-          <label className="cursor-pointer flex flex-col items-center">
-            <Upload className="w-12 h-12 text-blue-500 mb-2" />
-            <span className="text-lg font-medium text-slate-600">Click to Import CSV</span>
-            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-          </label>
-        </div>
-
-        {/* History */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h2 className="text-xl font-semibold text-slate-700">Previous Imports</h2>
-            {files.length > 0 && (
-              <button onClick={handleNuke} className="text-red-500 text-sm hover:text-red-700 font-bold">
-                Delete All
-              </button>
-            )}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-4">
+      <Card className="w-full max-w-2xl shadow-xl">
+        <CardHeader 
+          title="Finance Visualizer" 
+          action={files.length > 0 && (
+            <Button variant="danger" size="sm" onClick={handleNuke}>
+              Delete All
+            </Button>
+          )} 
+        />
+        <CardContent className="space-y-8">
+          
+          {/* Upload Area */}
+          <div className="group border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:bg-slate-50 hover:border-blue-400 transition cursor-pointer relative">
+            <input type="file" accept=".csv" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            <div className="flex flex-col items-center pointer-events-none">
+              <div className="bg-blue-50 p-4 rounded-full mb-4 group-hover:bg-blue-100 transition">
+                <Upload className="w-8 h-8 text-blue-500" />
+              </div>
+              <span className="text-lg font-medium text-slate-700">Drop your CSV here</span>
+              <span className="text-sm text-slate-400 mt-1">or click to browse</span>
+            </div>
           </div>
 
-          {files.length === 0 && <p className="text-slate-400 italic">No files stored locally.</p>}
+          {/* History */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Previous Imports</h2>
+            
+            {files.length === 0 && (
+              <div className="text-center py-8 text-slate-400 italic bg-slate-50 rounded-lg border border-slate-100">
+                No files found. Upload one to get started.
+              </div>
+            )}
 
-          <ul className="space-y-2">
-            {files.map(f => (
-              <li key={f.id} className="flex justify-between items-center bg-slate-50 p-3 rounded hover:bg-slate-100">
-                <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => setActiveFile(f)}>
-                  <FileSpreadsheet className="text-green-600" />
-                  <div>
-                    <div className="font-medium text-slate-800">{f.fileName}</div>
-                    <div className="text-xs text-slate-500">
-                      {new Date(f.uploadDate).toLocaleDateString()} • {f.rowCount} txns
+            <div className="grid gap-3">
+              {files.map(f => (
+                <div 
+                  key={f.id} 
+                  onClick={() => setActiveFile(f)}
+                  className="group flex justify-between items-center bg-white p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-md transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="bg-green-100 p-2.5 rounded-lg">
+                      <FileSpreadsheet className="w-5 h-5 text-green-700" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700 transition">{f.fileName}</div>
+                      <div className="text-xs text-slate-500 flex gap-2 mt-0.5">
+                        <span>{new Date(f.uploadDate).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{f.rowCount} rows</span>
+                      </div>
                     </div>
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => handleDelete(f.id, e)} 
+                    className="text-slate-400 hover:text-red-500 hover:bg-red-50"
+                  >
+                    <Trash2 size={18} />
+                  </Button>
                 </div>
-                <button onClick={() => handleDelete(f.id)} className="p-2 text-slate-400 hover:text-red-500">
-                  <Trash2 size={18} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

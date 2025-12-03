@@ -3,11 +3,21 @@ import { Transaction, TimeFrame } from '../types';
 import { filterByDate } from '../utils/dateUtils';
 import DrillDownChart from './DrillDownChart';
 import TrendChart from './TrendChart';
+import { Card, CardContent, CardHeader } from './ui/Card';
+import { Button } from './ui/Button';
+import { Calendar, PieChart, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: Transaction[];
   fileName: string;
 }
+
+const TIME_FRAMES: TimeFrame[] = [
+  'This Week', 'Last Week', 
+  'This Month', 'Last Month', 
+  'This Quarter', 'Last Quarter', 
+  'This Year', 'Last Year'
+];
 
 const Dashboard = ({ data, fileName }: Props) => {
   const [view, setView] = useState<'drill' | 'trend'>('drill');
@@ -15,9 +25,8 @@ const Dashboard = ({ data, fileName }: Props) => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  // Filter Data
+  // Filter Data Logic
   const filteredData = useMemo(() => {
-    // 1. Get dates that match the timeframe
     const allDates = data.map(t => t.date);
     const validDates = new Set(
       filterByDate(
@@ -27,68 +36,105 @@ const Dashboard = ({ data, fileName }: Props) => {
         customEnd ? new Date(customEnd) : undefined
       )
     );
-    // 2. Filter transactions
     return data.filter(t => validDates.has(t.date));
   }, [data, timeFrame, customStart, customEnd]);
 
   return (
-    <div>
-      <header className="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800">{fileName}</h2>
+    <div className="space-y-6">
+      {/* Header & View Switcher */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">{fileName}</h1>
+          <p className="text-slate-500 text-sm">
+            {filteredData.length} transactions found in period
+          </p>
+        </div>
         
-        <div className="flex gap-2 bg-slate-100 p-1 rounded">
+        <div className="flex p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
           <button 
-            className={`px-4 py-1 rounded ${view === 'drill' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}
             onClick={() => setView('drill')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              view === 'drill' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            Category Drill-Down
+            <PieChart size={16} />
+            Drill-Down
           </button>
           <button 
-            className={`px-4 py-1 rounded ${view === 'trend' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}
             onClick={() => setView('trend')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              view === 'trend' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            Trend Analysis
+            <TrendingUp size={16} />
+            Trends
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* Controls */}
-      <div className="bg-white p-4 rounded shadow-sm mb-6">
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-sm font-semibold text-slate-500 uppercase mr-2">Time Frame:</span>
-          {(['This Week', 'Last Week', 'This Month', 'Last Month', 'This Quarter', 'Last Quarter', 'This Year', 'Last Year'] as TimeFrame[]).map(tf => (
-            <button
-              key={tf}
-              onClick={() => setTimeFrame(tf)}
-              className={`px-3 py-1 text-sm rounded border ${timeFrame === tf ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
-            >
-              {tf}
-            </button>
-          ))}
-          <button
-            onClick={() => setTimeFrame('Custom')}
-            className={`px-3 py-1 text-sm rounded border ${timeFrame === 'Custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
-          >
-            Custom
-          </button>
-
-          {timeFrame === 'Custom' && (
-            <div className="flex gap-2 ml-4 items-center">
-              <input type="date" className="border rounded px-2 py-1 text-sm" onChange={e => setCustomStart(e.target.value)} />
-              <span>to</span>
-              <input type="date" className="border rounded px-2 py-1 text-sm" onChange={e => setCustomEnd(e.target.value)} />
+      {/* Controls Card */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-2 text-slate-500">
+              <Calendar size={18} />
+              <span className="text-sm font-semibold uppercase tracking-wide">Time Frame:</span>
             </div>
-          )}
-        </div>
-      </div>
+            
+            {TIME_FRAMES.map(tf => (
+              <Button
+                key={tf}
+                size="sm"
+                variant={timeFrame === tf ? 'primary' : 'secondary'}
+                onClick={() => setTimeFrame(tf)}
+                className="whitespace-nowrap"
+              >
+                {tf}
+              </Button>
+            ))}
+            
+            <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block" />
 
-      {/* Main Content */}
-      <div className="bg-white p-6 rounded shadow-lg min-h-[500px]">
-        {view === 'drill' 
-          ? <DrillDownChart transactions={filteredData} /> 
-          : <TrendChart transactions={filteredData} />
-        }
-      </div>
+            <Button
+              size="sm"
+              variant={timeFrame === 'Custom' ? 'primary' : 'secondary'}
+              onClick={() => setTimeFrame('Custom')}
+            >
+              Custom
+            </Button>
+
+            {timeFrame === 'Custom' && (
+              <div className="flex gap-2 items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 ml-2 animate-in fade-in slide-in-from-left-4">
+                <input 
+                  type="date" 
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
+                  onChange={e => setCustomStart(e.target.value)} 
+                />
+                <span className="text-slate-400 text-xs">to</span>
+                <input 
+                  type="date" 
+                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 outline-none" 
+                  onChange={e => setCustomEnd(e.target.value)} 
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Visualization Card */}
+      <Card className="min-h-[600px] flex flex-col">
+        <CardHeader 
+          title={view === 'drill' ? "Category Breakdown" : "Spending Trends"} 
+          action={<span className="text-xs text-slate-400 font-mono">LIVE PREVIEW</span>}
+        />
+        <CardContent className="flex-1">
+          {view === 'drill' 
+            ? <DrillDownChart transactions={filteredData} /> 
+            : <TrendChart transactions={filteredData} />
+          }
+        </CardContent>
+      </Card>
     </div>
   );
 };
