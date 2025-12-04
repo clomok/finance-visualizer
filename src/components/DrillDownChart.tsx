@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
 import { ArrowLeft } from 'lucide-react';
@@ -6,6 +6,7 @@ import TransactionList from './TransactionList';
 
 interface Props {
   transactions: Transaction[];
+  dateRange: { start: Date; end: Date };
 }
 
 const PALETTE = [
@@ -26,7 +27,6 @@ const PALETTE = [
   { h: 200, s: 30, l: 40 }, // Slate/Grey Blue
 ];
 
-// Helper to create a darker border color from an HSL string
 const darkenColor = (hslString: string, amount = 40) => {
   const match = hslString.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+(\.\d+)?)%\)/);
   if (!match) return '#000';
@@ -36,30 +36,22 @@ const darkenColor = (hslString: string, amount = 40) => {
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
-// Determine if text should be White or Dark Slate based on background brightness
 const getContrastingTextColor = (hslString: string) => {
   const match = hslString.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+(\.\d+)?)%\)/);
   if (!match) return '#334155';
-
   const h = parseInt(match[1]);
-  // const s = parseInt(match[2]); 
   const l = parseFloat(match[3]);
-
   const isHighLuminanceHue = (h > 40 && h < 190); 
-  
-  if (l > 65 || (isHighLuminanceHue && l > 45)) {
-    return '#0f172a'; 
-  }
+  if (l > 65 || (isHighLuminanceHue && l > 45)) return '#0f172a'; 
   return '#ffffff'; 
 };
 
-export default function DrillDownChart({ transactions }: Props) {
+export default function DrillDownChart({ transactions, dateRange }: Props) {
   const [viewRoot, setViewRoot] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
 
   const fullTree = useMemo(() => {
-    // 1. Root Setup
     const root = { 
       name: "Total", 
       id: "Total",
@@ -130,6 +122,40 @@ export default function DrillDownChart({ transactions }: Props) {
     return root;
   }, [transactions]);
 
+  // --- NEW: Sync Selection when Data Changes ---
+  // This ensures that when you switch from "This Month" to "Last Month",
+  // the currently open category card updates its totals and color immediately.
+  useEffect(() => {
+    // 1. Sync Zoom State
+    if (viewRoot) {
+        const exists = fullTree.children.find(g => g.id === viewRoot);
+        if (!exists) setViewRoot(null); // Group disappeared (no spend), go back to root
+    }
+
+    // 2. Sync Selected Detail Node
+    if (selectedNode) {
+        // Recursive helper to find the same node ID in the new tree
+        const findNodeById = (node: any, id: string): any => {
+            if (node.id === id) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const res = findNodeById(child, id);
+                    if (res) return res;
+                }
+            }
+            return null;
+        };
+
+        const updatedNode = findNodeById(fullTree, selectedNode.id);
+        
+        if (updatedNode) {
+            setSelectedNode(updatedNode); // Update with new data/color
+        } else {
+            setSelectedNode(null); // Node disappeared, close details
+        }
+    }
+  }, [fullTree]); // Runs whenever the transaction list is re-processed
+
   const displayData = useMemo(() => {
     if (!viewRoot) return fullTree;
     const groupNode = fullTree.children.find(g => g.id === viewRoot);
@@ -177,14 +203,10 @@ export default function DrillDownChart({ transactions }: Props) {
     }
   };
 
-  // NEW: Handle selection from the list below to update the chart
   const handleListSelection = (name: string) => {
-    // We search the current selected node's children (because we are viewing that group)
     if (selectedNode && selectedNode.children) {
       const child = selectedNode.children.find((c: any) => c.name === name);
-      if (child) {
-        setSelectedNode(child);
-      }
+      if (child) setSelectedNode(child);
     }
   };
 
@@ -193,6 +215,16 @@ export default function DrillDownChart({ transactions }: Props) {
   const getPercentage = (value: number) => {
       if (!overlayTotal || overlayTotal === 0) return '0.0';
       return ((value / overlayTotal) * 100).toFixed(1);
+  };
+
+  const getRowColor = (t: Transaction) => {
+    if (selectedNode && selectedNode.children) {
+        const childId = `${t.categoryGroup}.${t.categorySub}`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const child = selectedNode.children.find((c: any) => c.id === childId);
+        return child ? child.color : selectedNode.color;
+    }
+    return selectedNode?.color || '#cbd5e1';
   };
 
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
@@ -224,44 +256,30 @@ export default function DrillDownChart({ transactions }: Props) {
           id="id"
           value="loc"
           cornerRadius={2}
-          
-          theme={{
-            text: {
-                fontSize: 14,
-                fontWeight: 600
-            }
-          }}
-
+          theme={{ text: { fontSize: 14, fontWeight: 600 } }}
           borderWidth={((node: any) => {
              if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) return 5;
              return 1;
           }) as any}
-          
           borderColor={(node: any) => {
              if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) {
                  return darkenColor(node.data.color, 40); 
              }
              return 'white'; 
           }}
-          
           colors={(node: any) => node.data.color}
           inheritColorFromParent={false}
           enableArcLabels={true}
-          
           arcLabel={(d: any) => { 
              const isLeaf = !d.children || d.children.length === 0;
              if (!isLeaf) return ''; 
-
              const angle = (d.endAngle - d.startAngle) * (180 / Math.PI);
              if (angle < 10) return ''; 
-             
              const pct = overlayTotal > 0 ? ((d.value / overlayTotal) * 100).toFixed(1) : '0.0';
              return `${pct}%`; 
           }}
-          
           arcLabelsSkipAngle={10}
           arcLabelsTextColor={(d: any) => getContrastingTextColor(d.color)}
-          
           onClick={handleNodeClick}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tooltip={({ value, color, data }: any) => (
@@ -276,20 +294,12 @@ export default function DrillDownChart({ transactions }: Props) {
           )}
         />
         
-        {/* CENTER OVERLAY */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center justify-center w-48 h-48 rounded-full pointer-events-none">
             <div className="animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center">
-                
                 {showBackButton && (
                     <button 
                         onClick={handleBackClick}
-                        className={`
-                            pointer-events-auto mb-2 flex items-center gap-1.5 pl-2 pr-3 py-1.5 text-[10px] uppercase font-bold tracking-wide rounded-full transition-all border
-                            ${Object.keys(backButtonStyle).length > 0 
-                                ? 'shadow-sm hover:brightness-110'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border-slate-200'
-                            }
-                        `}
+                        className={`pointer-events-auto mb-2 flex items-center gap-1.5 pl-2 pr-3 py-1.5 text-[10px] uppercase font-bold tracking-wide rounded-full transition-all border ${Object.keys(backButtonStyle).length > 0 ? 'shadow-sm hover:brightness-110' : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border-slate-200'}`}
                         style={backButtonStyle}
                         title={backLabel}
                     >
@@ -297,7 +307,6 @@ export default function DrillDownChart({ transactions }: Props) {
                         {backLabel}
                     </button>
                 )}
-
                 <div className="text-lg font-bold text-slate-800 leading-tight mb-1 break-words max-w-[160px]">
                     {centerTitle}
                 </div>
@@ -314,7 +323,8 @@ export default function DrillDownChart({ transactions }: Props) {
           total={selectedNode.total}
           transactions={selectedNode.txns}
           color={selectedNode.color}
-          onSelect={handleListSelection} // PASSING THE HANDLER
+          dateRange={dateRange}
+          onSelect={handleListSelection} 
           onClose={() => {
               if (selectedNode.id !== viewRoot) {
                   setSelectedNode(viewRoot ? displayData : null);

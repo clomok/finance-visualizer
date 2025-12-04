@@ -1,7 +1,7 @@
 import { startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, subQuarters, startOfYear, endOfYear, subYears, isWithinInterval, parseISO } from 'date-fns';
 import { TimeFrame } from '../types';
 
-export const filterByDate = (dates: string[], timeFrame: TimeFrame, customStart?: Date, customEnd?: Date): string[] => {
+export const getDateRange = (timeFrame: TimeFrame, customStart?: Date, customEnd?: Date): { start: Date, end: Date } => {
   const now = new Date();
   let start: Date, end: Date;
 
@@ -39,17 +39,18 @@ export const filterByDate = (dates: string[], timeFrame: TimeFrame, customStart?
       end = endOfYear(subYears(now, 1));
       break;
     case 'Custom':
-      if (customStart && customEnd) {
-        start = customStart;
-        end = customEnd;
-      } else {
-        return dates;
-      }
+      start = customStart || new Date(0);
+      end = customEnd || new Date();
       break;
     default:
-      return dates;
+      start = new Date(0);
+      end = new Date();
   }
+  return { start, end };
+};
 
+export const filterByDate = (dates: string[], timeFrame: TimeFrame, customStart?: Date, customEnd?: Date): string[] => {
+  const { start, end } = getDateRange(timeFrame, customStart, customEnd);
   return dates.filter(dateStr => {
     return isWithinInterval(parseISO(dateStr), { start, end });
   });

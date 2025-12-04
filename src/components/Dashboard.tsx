@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Transaction, TimeFrame } from '../types';
-import { filterByDate } from '../utils/dateUtils';
+import { filterByDate, getDateRange } from '../utils/dateUtils';
 import DrillDownChart from './DrillDownChart';
 import TrendChart from './TrendChart';
 import { Card, CardContent, CardHeader } from './ui/Card';
@@ -9,7 +9,6 @@ import { Calendar, PieChart, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: Transaction[];
-  fileName: string; // Kept in interface for compatibility, but removed from destructuring below
   showIncome: boolean;
   showExpense: boolean;
   excludedCategories: string[];
@@ -22,16 +21,25 @@ const TIME_FRAMES: TimeFrame[] = [
   'This Year', 'Last Year'
 ];
 
-// Removed 'fileName' from destructuring to fix TS6133
 const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props) => {
   const [view, setView] = useState<'drill' | 'trend'>('drill');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('This Month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  // Filter Data Logic
+  // 1. Calculate the Date Range Object for metrics
+  const dateRange = useMemo(() => {
+    return getDateRange(
+      timeFrame, 
+      customStart ? new Date(customStart) : undefined, 
+      customEnd ? new Date(customEnd) : undefined
+    );
+  }, [timeFrame, customStart, customEnd]);
+
+  // 2. Filter Data
   const filteredData = useMemo(() => {
     const allDates = data.map(t => t.date);
+    // Use the filter utility (which uses the same logic as getDateRange internally)
     const validDates = new Set(
       filterByDate(
         allDates, 
@@ -147,7 +155,7 @@ const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props)
         />
         <CardContent className="flex-1">
           {view === 'drill' 
-            ? <DrillDownChart transactions={filteredData} /> 
+            ? <DrillDownChart transactions={filteredData} dateRange={dateRange} /> 
             : <TrendChart transactions={filteredData} />
           }
         </CardContent>

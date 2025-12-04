@@ -1,21 +1,19 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, ChevronRight, PieChart, TrendingUp, CalendarClock } from 'lucide-react';
 import { Transaction } from '../types';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 
 interface Props {
   title: string;
   total: number;
   transactions: Transaction[];
   color?: string;
+  dateRange: { start: Date; end: Date }; // New Prop
   onSelect?: (categoryName: string) => void;
   onClose: () => void;
 }
 
-export default function TransactionList({ title, total, transactions, color = '#3b82f6', onSelect, onClose }: Props) {
-  const [selectedSub, setSelectedSub] = useState<string | null>(null);
-
-  // 1. Group Data
+export default function TransactionList({ title, total, transactions, color = '#3b82f6', dateRange, onSelect, onClose }: Props) {
   const groupedSubs = useMemo(() => {
     const groups: Record<string, { total: number; count: number; txns: Transaction[] }> = {};
     
@@ -33,6 +31,9 @@ export default function TransactionList({ title, total, transactions, color = '#
       .sort((a, b) => b.total - a.total);
   }, [transactions]);
 
+  // Calculate days span from the GLOBAL range
+  const daysSpan = Math.max(1, differenceInDays(dateRange.end, dateRange.start) + 1);
+
   const isSingleCategory = groupedSubs.length === 1;
   const activeView = isSingleCategory ? 'list' : 'summary';
 
@@ -42,11 +43,6 @@ export default function TransactionList({ title, total, transactions, color = '#
       {groupedSubs.map((sub) => {
         const percent = total > 0 ? Math.min(100, (sub.total / total) * 100) : 0;
         const averageTxn = sub.total / sub.count;
-
-        // Calculate Daily Average
-        // We find the span between the first and last transaction in this group
-        const dates = sub.txns.map(t => parseISO(t.date)).sort((a, b) => a.getTime() - b.getTime());
-        const daysSpan = dates.length > 0 ? differenceInDays(dates[dates.length - 1], dates[0]) + 1 : 1;
         const averageDay = sub.total / daysSpan;
         
         return (
@@ -132,7 +128,6 @@ export default function TransactionList({ title, total, transactions, color = '#
     </div>
   );
 
-  // --- RENDER: Transaction Rows ---
   const renderTable = () => (
     <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm max-h-[500px] overflow-y-auto">
       <table className="min-w-full text-sm text-left bg-white relative">
