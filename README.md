@@ -1,33 +1,37 @@
 # Finance Visualizer (Homelab Edition)
 
-A self-hosted, offline-first Single Page Application (SPA) for visualizing personal finance export data.
+A self-hosted, offline-first Single Page Application (SPA) for visualizing personal finance export data from [Tiller](https://tiller.com/).
 
 **Key Features:**
-* **Privacy First:** No data is sent to the server. All parsing happens in the browser; data is persisted in your browser's IndexedDB.
-* **Ephemeral Server:** The Docker container is read-only and unprivileged. It serves static HTML/JS and nothing else.
-* **Visualizations:** Multi-level Sunburst drill-down charts and trend analysis line/bar graphs.
+
+- **Privacy First:** No data is sent to the server. All parsing happens in the browser; data is persisted in your browser's IndexedDB.
+- **Ephemeral Server:** The Docker container is read-only and unprivileged. It serves static HTML/JS and nothing else.
+- **Visualizations:** Multi-level Sunburst drill-down charts and trend analysis line/bar graphs.
 
 ## Prerequisites
 
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
-* [Node.js](https://nodejs.org/) (Optional, but useful for managing lockfiles locally).
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+- [Node.js](https://nodejs.org/) (Optional, but useful for managing lockfiles locally).
 
 ---
 
 ## 🚀 First Time Install
 
 1.  **Clone the repository** (or download the folder):
+
     ```bash
-    git clone <your-repo-url>
+    git clone https://github.com/clomok/finance-visualizer
     cd finance-visualizer
     ```
 
 2.  **Install Dependencies** (Creates the lockfile for security):
+
     ```bash
     npm install
     ```
 
 3.  **Build & Run:**
+
     ```bash
     docker-compose up --build -d
     ```
@@ -42,6 +46,7 @@ A self-hosted, offline-first Single Page Application (SPA) for visualizing perso
 When you change code or pull the latest version from Git:
 
 1.  **Get latest changes:**
+
     ```bash
     git pull
     ```
@@ -50,7 +55,7 @@ When you change code or pull the latest version from Git:
     ```bash
     docker-compose up --build -d
     ```
-    *The `--build` flag forces Docker to recreate the image with your new code.*
+    _The `--build` flag forces Docker to recreate the image with your new code._
 
 ---
 
@@ -59,6 +64,7 @@ When you change code or pull the latest version from Git:
 If the build fails or you want a completely clean slate (nuclear option):
 
 **Windows (PowerShell):**
+
 ```powershell
 # 1. Stop containers
 docker-compose down
@@ -76,11 +82,11 @@ docker-compose up --build
 
 ## Architecture
 
-* **Frontend:** React + Vite + TypeScript
-* **Styling:** Tailwind CSS
-* **Charts:** Recharts (Trends) & Nivo (Drill-down)
-* **Server:** Nginx Unprivileged (Alpine Linux)
-* **Security:**
-    * Container runs as non-root user.
-    * Filesystem is Read-Only.
-    * Strict Content Security Policy (CSP) headers enabled.
+- **Frontend:** React + Vite + TypeScript
+- **Styling:** Tailwind CSS
+- **Charts:** Recharts (Trends) & Nivo (Drill-down)
+- **Server:** Nginx Unprivileged (Alpine Linux)
+- **Security:**
+  - Container runs as non-root user.
+  - Filesystem is Read-Only.
+  - Strict Content Security Policy (CSP) headers enabled.
