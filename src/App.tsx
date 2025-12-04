@@ -188,6 +188,22 @@ function App() {
           </div>
 
           <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Usage Notes</h2>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm space-y-2">
+              <p>To use this visualizer, export your transactions from Tiller as a CSV file and upload it using the input above.</p>
+              <p>The visualizer currently supports 2 tiers of categories separated by a hyphen (e.g., <code>Food - Groceries</code>). You are not required to use multi-tiered categories, but the feature is supported.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Next Changes</h2>
+            <ul className="list-disc list-inside bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm space-y-1">
+              <li>Enable 3 tiers of category support.</li>
+              <li>Integrate groups as top-level category.</li>
+            </ul>
+          </div>
+
+          <div className="space-y-4">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Previous Imports</h2>
             {files.length === 0 && (
               <div className="text-center py-8 text-slate-400 italic bg-slate-50 rounded-lg border border-slate-100">
