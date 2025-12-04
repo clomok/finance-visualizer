@@ -202,15 +202,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
       return ((value / overlayTotal) * 100).toFixed(1);
   };
 
-  const getRowColor = (t: Transaction) => {
-    if (selectedNode && selectedNode.children) {
-        const childId = `${t.categoryGroup}.${t.categorySub}`;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const child = selectedNode.children.find((c: any) => c.id === childId);
-        return child ? child.color : selectedNode.color;
-    }
-    return selectedNode?.color || '#cbd5e1';
-  };
 
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
 

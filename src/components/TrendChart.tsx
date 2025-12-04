@@ -245,7 +245,7 @@ export default function TrendChart({ transactions }: Props) {
                     stackId="a" 
                     radius={[0, 0, 0, 0]} 
                     // FIX: Pass the payload data correctly
-                    onClick={(data, index) => handleBarClick(data)}
+                    onClick={(data) => handleBarClick(data)}
                     cursor="pointer"
                   />
                 );
@@ -258,8 +258,7 @@ export default function TrendChart({ transactions }: Props) {
                     stroke={color} 
                     strokeWidth={3} 
                     dot={{ r: 4, strokeWidth: 0, fill: color }}
-                    activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                    activeDot={{ onClick: (e: any, payload: any) => handleBarClick(payload.payload) }}
+                    activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, onClick: (payload: any) => handleBarClick(payload.payload) }}
                   />
                 );
               }

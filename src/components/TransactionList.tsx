@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, ChevronRight, PieChart, TrendingUp, CalendarClock, CalendarRange } from 'lucide-react';
 import { Transaction } from '../types';
-import { differenceInDays, format, parseISO } from 'date-fns';
+import { differenceInDays, format } from 'date-fns';
 
 interface Props {
   title: string;
