@@ -17,22 +17,28 @@ function App() {
   const [showExpense, setShowExpense] = useState(true);
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
 
-  // Get ALL unique categories (Groups AND Sub-categories) for the filter dropdown
+  // STRICT FILTER LIST: Only show categories that actually exist in the data rows.
+  // UPDATE: Force <none> to the bottom.
   const allCategories = useMemo(() => {
     if (!activeFile) return [];
     
     const uniqueSet = new Set<string>();
     
     activeFile.data.forEach(t => {
-      // Add the top-level Group (e.g., "Food & Dining")
-      if (t.categoryGroup) uniqueSet.add(t.categoryGroup);
-      
-      // Add the specific Sub-Category (e.g., "Food & Dining - Fast Food")
       if (t.category) uniqueSet.add(t.category);
     });
 
-    // Sort alphabetically so Groups and their Subs appear together
-    return Array.from(uniqueSet).sort();
+    // 1. Sort everything alphabetically first
+    const sorted = Array.from(uniqueSet).sort();
+
+    // 2. Find and move <none> to the bottom
+    const noneIndex = sorted.indexOf('<none>');
+    if (noneIndex !== -1) {
+      sorted.splice(noneIndex, 1); // Remove it from its current spot
+      sorted.push('<none>');       // Add it to the very end
+    }
+
+    return sorted;
   }, [activeFile]);
 
   useEffect(() => {
@@ -59,7 +65,7 @@ function App() {
         await saveFile(record);
         await loadHistory();
         setActiveFile(record);
-        setExcludedCategories([]); // Reset filters on new file load
+        setExcludedCategories([]); 
       } catch (err) {
         console.error("Parse error", err);
         alert("Error parsing file. Check format.");
@@ -89,7 +95,6 @@ function App() {
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           
-          {/* Global Top Bar */}
           <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
              <div className="flex items-center gap-4 w-full md:w-auto">
                 <Button 
@@ -108,7 +113,6 @@ function App() {
                 </div>
              </div>
 
-             {/* Filter Controls */}
              <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
                 <MultiSelect 
                   label="Filter Categories" 
@@ -159,7 +163,7 @@ function App() {
     );
   }
 
-  // Upload Screen (unchanged)
+  // Upload Screen
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-4">
       <Card className="w-full max-w-2xl shadow-xl">
