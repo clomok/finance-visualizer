@@ -186,6 +186,11 @@ function App() {
               <span className="text-sm text-slate-400 mt-1">or click to browse</span>
             </div>
           </div>
+          
+          <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200 text-sm flex items-center justify-center font-medium">
+            <span role="img" aria-label="info" className="mr-2 text-xl">⚠️</span>
+            No file is ever uploaded to a server. All your data stays 100% offline and in your browser only.
+          </div>
 
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Usage Notes</h2>
