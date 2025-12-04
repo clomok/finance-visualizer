@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
 import { ArrowLeft } from 'lucide-react';
+import TransactionList from './TransactionList';
 
 interface Props {
   transactions: Transaction[];
@@ -176,21 +177,22 @@ export default function DrillDownChart({ transactions }: Props) {
     }
   };
 
+  // NEW: Handle selection from the list below to update the chart
+  const handleListSelection = (name: string) => {
+    // We search the current selected node's children (because we are viewing that group)
+    if (selectedNode && selectedNode.children) {
+      const child = selectedNode.children.find((c: any) => c.name === name);
+      if (child) {
+        setSelectedNode(child);
+      }
+    }
+  };
+
   const overlayTotal = viewRoot ? (displayData as any).displayedTotal : (fullTree as any).total;
 
   const getPercentage = (value: number) => {
       if (!overlayTotal || overlayTotal === 0) return '0.0';
       return ((value / overlayTotal) * 100).toFixed(1);
-  };
-
-  const getRowColor = (t: Transaction) => {
-    if (selectedNode && selectedNode.children) {
-        const childId = `${t.categoryGroup}.${t.categorySub}`;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const child = selectedNode.children.find((c: any) => c.id === childId);
-        return child ? child.color : selectedNode.color;
-    }
-    return selectedNode?.color || '#cbd5e1';
   };
 
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
@@ -246,12 +248,9 @@ export default function DrillDownChart({ transactions }: Props) {
           inheritColorFromParent={false}
           enableArcLabels={true}
           
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           arcLabel={(d: any) => { 
-             // FIX: Only show labels on the first visible ring (Depth 1)
-             // Top Level: Depth 1 = Groups (Inner Ring) -> Shows Group %
-             // Zoomed Level: Depth 1 = Sub-Categories (Inner Ring) -> Shows Sub %
-             if (d.depth !== 1) return ''; 
+             const isLeaf = !d.children || d.children.length === 0;
+             if (!isLeaf) return ''; 
 
              const angle = (d.endAngle - d.startAngle) * (180 / Math.PI);
              if (angle < 10) return ''; 
@@ -261,7 +260,6 @@ export default function DrillDownChart({ transactions }: Props) {
           }}
           
           arcLabelsSkipAngle={10}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           arcLabelsTextColor={(d: any) => getContrastingTextColor(d.color)}
           
           onClick={handleNodeClick}
@@ -311,68 +309,21 @@ export default function DrillDownChart({ transactions }: Props) {
       </div>
 
       {selectedNode && selectedNode.txns && (
-        <div className="mt-4 border-t border-slate-100 pt-6 animate-in slide-in-from-bottom-4">
-          <div className="flex justify-between items-end mb-4">
-            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedNode.color }} />
-              {selectedNode.name}
-            </h3>
-            <div className="flex items-center gap-4">
-                <span className="font-mono text-slate-600 font-bold">
-                    ${selectedNode.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-                <button 
-                  onClick={() => {
-                      if (selectedNode.id !== viewRoot) {
-                          setSelectedNode(viewRoot ? displayData : null);
-                      } else {
-                          setViewRoot(null);
-                          setSelectedNode(null);
-                      }
-                  }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                >
-                  Close Details
-                </button>
-            </div>
-          </div>
-          
-          <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm max-h-[400px] overflow-y-auto">
-            <table className="min-w-full text-sm text-left bg-white relative">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10">
-                <tr>
-                  <th className="p-3 w-1"></th> 
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Description</th>
-                  <th className="p-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {selectedNode.txns.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: Transaction) => (
-                  <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3">
-                        <div 
-                            className="w-1.5 h-6 rounded-full" 
-                            style={{ backgroundColor: getRowColor(t) }}
-                            title={t.categorySub} 
-                        />
-                    </td>
-                    <td className="p-3 text-slate-600 whitespace-nowrap font-mono text-xs">{t.date}</td>
-                    <td className="p-3 text-slate-800 font-medium">
-                        <div>{t.description}</div>
-                        {selectedNode.children && selectedNode.children.length > 0 && (
-                            <div className="text-[10px] text-slate-400 mt-0.5">{t.categorySub}</div>
-                        )}
-                    </td>
-                    <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
-                      ${Math.abs(t.amount).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TransactionList 
+          title={selectedNode.name}
+          total={selectedNode.total}
+          transactions={selectedNode.txns}
+          color={selectedNode.color}
+          onSelect={handleListSelection} // PASSING THE HANDLER
+          onClose={() => {
+              if (selectedNode.id !== viewRoot) {
+                  setSelectedNode(viewRoot ? displayData : null);
+              } else {
+                  setViewRoot(null);
+                  setSelectedNode(null);
+              }
+          }}
+        />
       )}
     </div>
   );
