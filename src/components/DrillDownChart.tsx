@@ -25,6 +25,33 @@ const PALETTE = [
   { h: 200, s: 30, l: 40 }, // Slate/Grey Blue
 ];
 
+// Helper to create a darker border color from an HSL string
+const darkenColor = (hslString: string, amount = 40) => {
+  const match = hslString.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+(\.\d+)?)%\)/);
+  if (!match) return '#000';
+  const h = match[1];
+  const s = match[2];
+  const l = Math.max(0, parseFloat(match[3]) - amount); 
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
+
+// Determine if text should be White or Dark Slate based on background brightness
+const getContrastingTextColor = (hslString: string) => {
+  const match = hslString.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+(\.\d+)?)%\)/);
+  if (!match) return '#334155';
+
+  const h = parseInt(match[1]);
+  const s = parseInt(match[2]); 
+  const l = parseFloat(match[3]);
+
+  const isHighLuminanceHue = (h > 40 && h < 190); 
+  
+  if (l > 65 || (isHighLuminanceHue && l > 45)) {
+    return '#0f172a'; 
+  }
+  return '#ffffff'; 
+};
+
 export default function DrillDownChart({ transactions }: Props) {
   const [viewRoot, setViewRoot] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,10 +203,6 @@ export default function DrillDownChart({ transactions }: Props) {
   else if (isLeafSelected) backLabel = "Back to Total";
   else if (isGroupZoomed) backLabel = "Back to Total";
 
-  // Dynamic Button Style Logic
-  // If we are deep in a leaf (selectedNode) AND zoomed (viewRoot), the target is the Group.
-  // Use the Group's color (displayData.color) for the button.
-  // Otherwise, use neutral.
   const backButtonStyle = (isLeafSelected && viewRoot) ? {
       backgroundColor: (displayData as any).color,
       color: '#ffffff',
@@ -198,17 +221,49 @@ export default function DrillDownChart({ transactions }: Props) {
           id="id"
           value="loc"
           cornerRadius={2}
-          borderWidth={1}
-          borderColor="white"
+          
+          // INCREASED FONT SIZE VIA THEME
+          theme={{
+            text: {
+                fontSize: 14,
+                fontWeight: 600
+            }
+          }}
+
+          borderWidth={(node: any) => {
+             if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) return 5;
+             return 1;
+          }}
+          borderColor={(node: any) => {
+             if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) {
+                 return darkenColor(node.data.color, 40); 
+             }
+             return 'white'; 
+          }}
+          
           colors={(node: any) => node.data.color}
           inheritColorFromParent={false}
           enableArcLabels={true}
+          
+          // REFINED LABEL LOGIC
           arcLabel={(d) => {
+             // 1. Only show labels on the first visible ring (Depth 1)
+             // Top Level: Depth 1 = Groups (Inner Ring)
+             // Zoomed: Depth 1 = Sub-categories (Inner Ring relative to zoomed center)
+             if (d.depth !== 1) return ''; 
+
+             // 2. Hide if tiny
              const angle = (d.endAngle - d.startAngle) * (180 / Math.PI);
-             return angle > 10 ? d.data.name : ''; 
+             if (angle < 10) return ''; 
+             
+             // 3. Show Percentage Only
+             const pct = overlayTotal > 0 ? ((d.value / overlayTotal) * 100).toFixed(1) : '0.0';
+             return `${pct}%`; 
           }}
+          
           arcLabelsSkipAngle={10}
-          arcLabelsTextColor={{ from: 'color', modifiers: [ [ 'darker', 3 ] ] }}
+          arcLabelsTextColor={(d: any) => getContrastingTextColor(d.color)}
+          
           onClick={handleNodeClick}
           tooltip={({ id, value, color, data }) => (
             <div className="bg-white p-2 border border-slate-200 shadow-lg rounded flex items-center gap-2 z-50">
@@ -232,8 +287,8 @@ export default function DrillDownChart({ transactions }: Props) {
                         className={`
                             pointer-events-auto mb-2 flex items-center gap-1.5 pl-2 pr-3 py-1.5 text-[10px] uppercase font-bold tracking-wide rounded-full transition-all border
                             ${Object.keys(backButtonStyle).length > 0 
-                                ? 'shadow-sm hover:brightness-110' // Custom color styles
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border-slate-200' // Default styles
+                                ? 'shadow-sm hover:brightness-110'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border-slate-200'
                             }
                         `}
                         style={backButtonStyle}
@@ -266,7 +321,14 @@ export default function DrillDownChart({ transactions }: Props) {
                     ${selectedNode.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
                 <button 
-                  onClick={() => setSelectedNode(viewRoot ? displayData : null)}
+                  onClick={() => {
+                      if (selectedNode.id !== viewRoot) {
+                          setSelectedNode(viewRoot ? displayData : null);
+                      } else {
+                          setViewRoot(null);
+                          setSelectedNode(null);
+                      }
+                  }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
                 >
                   Close Details
