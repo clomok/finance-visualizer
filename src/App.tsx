@@ -189,7 +189,7 @@ function App() {
           
           <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200 text-sm flex items-center justify-center font-medium">
             <span role="img" aria-label="info" className="mr-2 text-xl">⚠️</span>
-            No file is ever uploaded to a server. All your data stays 100% offline and in your browser only.
+            No file is ever uploaded to a server. </br> All your data stays 100% offline and in your browser only.
           </div>
 
           <div className="space-y-4">
