@@ -9,9 +9,7 @@ import { Button } from './components/ui/Button';
 import { MultiSelect } from './components/ui/MultiSelect';
 import { generateUUID } from './utils/uuid';
 
-import { generateUUID } from './utils/uuid';
 
-function App() {
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [activeFile, setActiveFile] = useState<FileRecord | null>(null);
   
