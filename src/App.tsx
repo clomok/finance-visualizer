@@ -191,11 +191,11 @@ function App() {
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Usage Notes</h2>
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm space-y-2">
               <p>To use this visualizer, export your transactions from <span className="font-bold">Tiller</span> as a <span className="font-bold">CSV</span> file and upload it using the input above.</p>
-              <p>The visualizer currently supports <span className="font-bold">2 tiers of categories</span> separated by a hyphen. For example:</p>
+              <p>This visualizer is currently designed to be used with <span className="font-bold">2 tiers of categories</span> separated by a hyphen. For example:</p>
               <ul className="list-disc list-inside ml-4">
-                <li><code>Parent - Child</code> (e.g., <code>Food - Groceries</code>)</li>
+                <li><code>Parent - Child</code> (e.g.  <code>Food - Groceries</code>)</li>
               </ul>
-              <p>You are not required to use multi-tiered categories, but the feature is fully supported.</p>
+              <p>You are not required to use multi-tiered categories, but the feature is currently fully supported for 2 tiers of categories.</p>
             </div>
           </div>
 
