@@ -35,8 +35,7 @@ export default function DrillDownChart({ transactions }: Props) {
       name: "Total", 
       id: "Total",
       color: "#ffffff", 
-      // loc: undefined, // Root has no 'loc'. Nivo sums children.
-      total: 0,       // Custom prop for UI Text
+      total: 0, 
       children: [] as any[] 
     };
     
@@ -52,14 +51,14 @@ export default function DrillDownChart({ transactions }: Props) {
         groups[t.categoryGroup] = { 
           name: t.categoryGroup, 
           id: t.categoryGroup,
-          // loc: undefined, // Group has no 'loc'. Nivo sums children.
-          total: 0,        // Custom prop for UI Text
-          children: [] 
+          total: 0,
+          children: [],
+          txns: []
         };
       }
       
-      // Track total for UI, but NOT for Chart Layout
       groups[t.categoryGroup].total += amount;
+      groups[t.categoryGroup].txns.push(t);
       
       const childId = `${t.categoryGroup}.${t.categorySub}`;
       let child = groups[t.categoryGroup].children.find((c: any) => c.id === childId);
@@ -67,7 +66,7 @@ export default function DrillDownChart({ transactions }: Props) {
         child = { 
           name: t.categorySub, 
           id: childId,
-          loc: 0, // LEAF gets 'loc'. This drives the entire chart sizing.
+          loc: 0, 
           total: 0,
           txns: [] 
         };
@@ -79,14 +78,12 @@ export default function DrillDownChart({ transactions }: Props) {
       child.txns.push(t);
     });
 
-    // Sort Groups by Total Size
     const sortedGroups = Object.values(groups).sort((a: any, b: any) => b.total - a.total);
 
     sortedGroups.forEach((group, index) => {
       const base = PALETTE[index % PALETTE.length];
       group.color = `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
 
-      // Sort Children
       group.children.sort((a: any, b: any) => b.total - a.total);
 
       const childCount = group.children.length;
@@ -107,7 +104,13 @@ export default function DrillDownChart({ transactions }: Props) {
   const displayData = useMemo(() => {
     if (!viewRoot) return fullTree;
     const groupNode = fullTree.children.find(g => g.id === viewRoot);
-    if (groupNode) return { ...groupNode };
+    if (groupNode) {
+        return { 
+            ...groupNode, 
+            displayedTotal: groupNode.total, 
+            loc: undefined 
+        };
+    }
     return fullTree;
   }, [fullTree, viewRoot]);
 
@@ -126,23 +129,65 @@ export default function DrillDownChart({ transactions }: Props) {
     } else {
         if (isGroup && node.id !== "Total") {
             setViewRoot(node.id);
-            setSelectedNode(null); 
+            setSelectedNode(node.data); 
         } else if (isLeaf) {
             setSelectedNode(node.data);
         }
     }
   };
 
-  // Safe Total Calculation for Overlay Text
-  // We use our custom 'total' property which is always accurate
-  const overlayTotal = viewRoot ? (displayData as any).total : (fullTree as any).total;
+  const handleBackClick = () => {
+    if (selectedNode && selectedNode.id !== viewRoot) {
+        setSelectedNode(viewRoot ? displayData : null);
+        return;
+    }
+    if (viewRoot) {
+        setViewRoot(null);
+        setSelectedNode(null);
+        return;
+    }
+  };
+
+  const overlayTotal = viewRoot ? (displayData as any).displayedTotal : (fullTree as any).total;
 
   const getPercentage = (value: number) => {
       if (!overlayTotal || overlayTotal === 0) return '0.0';
       return ((value / overlayTotal) * 100).toFixed(1);
   };
 
+  const getRowColor = (t: Transaction) => {
+    if (selectedNode && selectedNode.children) {
+        const childId = `${t.categoryGroup}.${t.categorySub}`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const child = selectedNode.children.find((c: any) => c.id === childId);
+        return child ? child.color : selectedNode.color;
+    }
+    return selectedNode?.color || '#cbd5e1';
+  };
+
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
+
+  const isLeafSelected = selectedNode && selectedNode.id !== viewRoot;
+  const isGroupZoomed = !!viewRoot;
+  const showBackButton = isLeafSelected || isGroupZoomed;
+  
+  let backLabel = "Back";
+  if (isLeafSelected && viewRoot) backLabel = `Back to ${viewRoot}`;
+  else if (isLeafSelected) backLabel = "Back to Total";
+  else if (isGroupZoomed) backLabel = "Back to Total";
+
+  // Dynamic Button Style Logic
+  // If we are deep in a leaf (selectedNode) AND zoomed (viewRoot), the target is the Group.
+  // Use the Group's color (displayData.color) for the button.
+  // Otherwise, use neutral.
+  const backButtonStyle = (isLeafSelected && viewRoot) ? {
+      backgroundColor: (displayData as any).color,
+      color: '#ffffff',
+      borderColor: (displayData as any).color
+  } : {};
+
+  const centerTitle = isLeafSelected ? selectedNode.name : (viewRoot ? displayData.name : "TOTAL");
+  const centerAmount = isLeafSelected ? selectedNode.total : overlayTotal;
 
   return (
     <div className="flex flex-col h-full relative">
@@ -178,36 +223,35 @@ export default function DrillDownChart({ transactions }: Props) {
         />
         
         {/* CENTER OVERLAY */}
-        {!selectedNode && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center justify-center w-48 h-48 rounded-full pointer-events-none">
-                {viewRoot ? (
-                    <div className="animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center">
-                        <button 
-                            onClick={() => { setViewRoot(null); setSelectedNode(null); }}
-                            className="pointer-events-auto mb-2 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
-                            title="Go Back"
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                        <div className="text-lg font-bold text-slate-800 leading-tight mb-1 break-words max-w-[160px]">
-                            {displayData.name}
-                        </div>
-                        <div className="text-sm font-mono text-slate-500 font-bold">
-                            ${(overlayTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </div>
-                    </div>
-                ) : (
-                    <div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                            Total Spend
-                        </div>
-                        <div className="text-xl font-mono font-bold text-slate-700">
-                             ${(overlayTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                    </div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center justify-center w-48 h-48 rounded-full pointer-events-none">
+            <div className="animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center">
+                
+                {showBackButton && (
+                    <button 
+                        onClick={handleBackClick}
+                        className={`
+                            pointer-events-auto mb-2 flex items-center gap-1.5 pl-2 pr-3 py-1.5 text-[10px] uppercase font-bold tracking-wide rounded-full transition-all border
+                            ${Object.keys(backButtonStyle).length > 0 
+                                ? 'shadow-sm hover:brightness-110' // Custom color styles
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border-slate-200' // Default styles
+                            }
+                        `}
+                        style={backButtonStyle}
+                        title={backLabel}
+                    >
+                        <ArrowLeft size={12} />
+                        {backLabel}
+                    </button>
                 )}
+
+                <div className="text-lg font-bold text-slate-800 leading-tight mb-1 break-words max-w-[160px]">
+                    {centerTitle}
+                </div>
+                <div className="text-sm font-mono text-slate-500 font-bold">
+                    ${(centerAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </div>
             </div>
-        )}
+        </div>
       </div>
 
       {selectedNode && selectedNode.txns && (
@@ -222,7 +266,7 @@ export default function DrillDownChart({ transactions }: Props) {
                     ${selectedNode.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
                 <button 
-                  onClick={() => setSelectedNode(null)}
+                  onClick={() => setSelectedNode(viewRoot ? displayData : null)}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
                 >
                   Close Details
@@ -234,6 +278,7 @@ export default function DrillDownChart({ transactions }: Props) {
             <table className="min-w-full text-sm text-left bg-white relative">
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10">
                 <tr>
+                  <th className="p-3 w-1"></th> 
                   <th className="p-3">Date</th>
                   <th className="p-3">Description</th>
                   <th className="p-3 text-right">Amount</th>
@@ -242,8 +287,20 @@ export default function DrillDownChart({ transactions }: Props) {
               <tbody className="divide-y divide-slate-100">
                 {selectedNode.txns.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: Transaction) => (
                   <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3">
+                        <div 
+                            className="w-1.5 h-6 rounded-full" 
+                            style={{ backgroundColor: getRowColor(t) }}
+                            title={t.categorySub} 
+                        />
+                    </td>
                     <td className="p-3 text-slate-600 whitespace-nowrap font-mono text-xs">{t.date}</td>
-                    <td className="p-3 text-slate-800 font-medium">{t.description}</td>
+                    <td className="p-3 text-slate-800 font-medium">
+                        <div>{t.description}</div>
+                        {selectedNode.children && selectedNode.children.length > 0 && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">{t.categorySub}</div>
+                        )}
+                    </td>
                     <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
                       ${Math.abs(t.amount).toFixed(2)}
                     </td>
