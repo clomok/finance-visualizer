@@ -7,6 +7,9 @@ import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown } from 
 import { Card, CardHeader, CardContent } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { MultiSelect } from './components/ui/MultiSelect';
+import { generateUUID } from './utils/uuid';
+
+import { generateUUID } from './utils/uuid';
 
 function App() {
   const [files, setFiles] = useState<FileRecord[]>([]);
@@ -56,7 +59,7 @@ function App() {
       try {
         const data = await parseCSV(file);
         const record: FileRecord = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           fileName: file.name,
           uploadDate: Date.now(),
           rowCount: data.length,
