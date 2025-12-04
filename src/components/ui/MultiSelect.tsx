@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Filter, X, Check, Lock, Layers } from 'lucide-react';
 
 interface MultiSelectProps {
@@ -30,7 +30,8 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
     }
   };
 
-  const toggleVirtualParent = (parentName: string, children: string[]) => {
+  // Removed unused 'parentName' argument
+  const toggleVirtualParent = (children: string[]) => {
     // Check if ALL children are currently selected
     const allSelected = children.every(child => selected.includes(child));
     
@@ -54,11 +55,9 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
   };
 
   // Pre-process options to find orphans
-  // If we have "Food - Tacos" but NOT "Food", we need to know so we can render a header
   const renderList: { type: 'header' | 'item' | 'virtual-header', value: string, children?: string[] }[] = [];
   
   let lastParent = '';
-  // Helper to find all children of a parent group in the dataset
   const getChildrenOf = (parent: string) => options.filter(opt => opt.startsWith(parent + ' - '));
 
   options.forEach(option => {
@@ -69,8 +68,6 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
     if (parentName !== lastParent) {
       lastParent = parentName;
       
-      // If the current item is a SUB, and the actual Parent is NOT in the list
-      // We need to inject a Virtual Header
       if (isSub && !options.includes(parentName)) {
         renderList.push({ 
           type: 'virtual-header', 
@@ -80,16 +77,13 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
       }
     }
     
-    // Determine if this item acts as a Header (Parent category) or Item (Sub category)
     renderList.push({ 
       type: isSub ? 'item' : 'header', 
       value: option,
-      // If it's a header, we store its children so we can do the select-all logic
       children: isSub ? undefined : getChildrenOf(option)
     });
   });
 
-  // Zebra styling tracker
   let subIndex = 0;
   let currentParentForStriping = '';
 
@@ -132,40 +126,30 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
             {renderList.map((node, idx) => {
               const { type, value, children } = node;
               
-              // Logic for Hierarchy
               const isSub = type === 'item';
               const parentName = isSub ? value.split(' - ')[0] : value;
               
-              // Track striping
               if (parentName !== currentParentForStriping) {
                 currentParentForStriping = parentName;
                 subIndex = 0;
               }
               if (isSub) subIndex++;
 
-              // Selection Logic
               const isSelected = selected.includes(value);
               
-              // For Virtual Headers & Real Headers: Are all children selected?
               const areChildrenSelected = children && children.length > 0 
                 ? children.every(c => selected.includes(c))
                 : false;
 
-              // If I am a child, is my parent selected (conceptually)?
               const isParentSelected = isSub ? selected.includes(parentName) : false; 
-              
-              // IMPORTANT: 
-              // If type is 'virtual-header', it is NOT in the selected list ever (it doesn't exist).
-              // Its "checked" state is derived purely from whether its children are checked.
               
               const isEffectivelySelected = type === 'virtual-header' 
                 ? areChildrenSelected
                 : isSelected || isParentSelected;
 
-              // Styles
               let bgClass = 'bg-white';
               if (type === 'header' || type === 'virtual-header') {
-                bgClass = 'bg-slate-200/80 border-b border-white sticky top-[33px] z-0'; // sticky headers!
+                bgClass = 'bg-slate-200/80 border-b border-white sticky top-[33px] z-0'; 
               } else {
                 bgClass = subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
               }
@@ -179,9 +163,9 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
                   key={`${value}-${idx}`}
                   onClick={() => {
                     if (type === 'virtual-header' && children) {
-                      toggleVirtualParent(value, children);
+                      toggleVirtualParent(children); // Fixed call
                     } else if (type === 'header') {
-                      toggleOption(value); // Standard toggle for real headers
+                      toggleOption(value); 
                     } else if (!isDisabled) {
                       toggleOption(value);
                     }
@@ -202,7 +186,7 @@ export const MultiSelect = ({ label, options, selected, onChange }: MultiSelectP
                     }
                   `}>
                     {type === 'virtual-header' && !isEffectivelySelected 
-                      ? <Layers size={10} className="text-slate-400" /> // Icon for virtual groupings
+                      ? <Layers size={10} className="text-slate-400" />
                       : (isDisabled 
                           ? <Lock size={8} strokeWidth={4} className="opacity-75" /> 
                           : isEffectivelySelected && <Check size={10} strokeWidth={4} />

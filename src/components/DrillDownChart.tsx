@@ -41,7 +41,7 @@ const getContrastingTextColor = (hslString: string) => {
   if (!match) return '#334155';
 
   const h = parseInt(match[1]);
-  const s = parseInt(match[2]); 
+  // const s = parseInt(match[2]); 
   const l = parseFloat(match[3]);
 
   const isHighLuminanceHue = (h > 40 && h < 190); 
@@ -58,6 +58,7 @@ export default function DrillDownChart({ transactions }: Props) {
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
 
   const fullTree = useMemo(() => {
+    // 1. Root Setup
     const root = { 
       name: "Total", 
       id: "Total",
@@ -222,7 +223,6 @@ export default function DrillDownChart({ transactions }: Props) {
           value="loc"
           cornerRadius={2}
           
-          // INCREASED FONT SIZE VIA THEME
           theme={{
             text: {
                 fontSize: 14,
@@ -230,10 +230,11 @@ export default function DrillDownChart({ transactions }: Props) {
             }
           }}
 
-          borderWidth={(node: any) => {
+          borderWidth={((node: any) => {
              if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) return 5;
              return 1;
-          }}
+          }) as any}
+          
           borderColor={(node: any) => {
              if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) {
                  return darkenColor(node.data.color, 40); 
@@ -245,27 +246,27 @@ export default function DrillDownChart({ transactions }: Props) {
           inheritColorFromParent={false}
           enableArcLabels={true}
           
-          // REFINED LABEL LOGIC
-          arcLabel={(d) => {
-             // 1. Only show labels on the first visible ring (Depth 1)
-             // Top Level: Depth 1 = Groups (Inner Ring)
-             // Zoomed: Depth 1 = Sub-categories (Inner Ring relative to zoomed center)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          arcLabel={(d: any) => { 
+             // FIX: Only show labels on the first visible ring (Depth 1)
+             // Top Level: Depth 1 = Groups (Inner Ring) -> Shows Group %
+             // Zoomed Level: Depth 1 = Sub-Categories (Inner Ring) -> Shows Sub %
              if (d.depth !== 1) return ''; 
 
-             // 2. Hide if tiny
              const angle = (d.endAngle - d.startAngle) * (180 / Math.PI);
              if (angle < 10) return ''; 
              
-             // 3. Show Percentage Only
              const pct = overlayTotal > 0 ? ((d.value / overlayTotal) * 100).toFixed(1) : '0.0';
              return `${pct}%`; 
           }}
           
           arcLabelsSkipAngle={10}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           arcLabelsTextColor={(d: any) => getContrastingTextColor(d.color)}
           
           onClick={handleNodeClick}
-          tooltip={({ id, value, color, data }) => (
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tooltip={({ value, color, data }: any) => (
             <div className="bg-white p-2 border border-slate-200 shadow-lg rounded flex items-center gap-2 z-50">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
               <span className="font-semibold text-slate-700">{data.name}:</span> 

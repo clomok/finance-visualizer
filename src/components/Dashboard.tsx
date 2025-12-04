@@ -9,7 +9,7 @@ import { Calendar, PieChart, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: Transaction[];
-  fileName: string;
+  fileName: string; // Kept in interface for compatibility, but removed from destructuring below
   showIncome: boolean;
   showExpense: boolean;
   excludedCategories: string[];
@@ -22,7 +22,8 @@ const TIME_FRAMES: TimeFrame[] = [
   'This Year', 'Last Year'
 ];
 
-const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories }: Props) => {
+// Removed 'fileName' from destructuring to fix TS6133
+const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props) => {
   const [view, setView] = useState<'drill' | 'trend'>('drill');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('This Month');
   const [customStart, setCustomStart] = useState('');
@@ -30,7 +31,6 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
 
   // Filter Data Logic
   const filteredData = useMemo(() => {
-    // 1. Date Filter
     const allDates = data.map(t => t.date);
     const validDates = new Set(
       filterByDate(
@@ -44,24 +44,15 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
     const excludedSet = new Set(excludedCategories);
 
     return data.filter(t => {
-      // Date Check
       if (!validDates.has(t.date)) return false;
-
-      // Category Exclusion Check
-      // Block if the Group is excluded (e.g. "Food & Dining")
       if (excludedSet.has(t.categoryGroup)) return false;
-      // Block if the specific Sub-Category is excluded (e.g. "Food & Dining - Fast Food")
       if (excludedSet.has(t.category)) return false;
-
-      // Type Check
       if (t.amount < 0 && !showExpense) return false;
       if (t.amount >= 0 && !showIncome) return false;
-
       return true;
     });
   }, [data, timeFrame, customStart, customEnd, showIncome, showExpense, excludedCategories]);
 
-  // Calculate totals for the summary view
   const { totalIncome, totalExpense } = useMemo(() => {
     return filteredData.reduce((acc, t) => {
       if (t.amount >= 0) acc.totalIncome += t.amount;
@@ -72,12 +63,9 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
 
   return (
     <div className="space-y-6">
-      {/* Controls Card */}
       <Card>
         <CardContent className="py-4">
           <div className="flex flex-col md:flex-row justify-between gap-4">
-            
-            {/* Time Frame Controls */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2 mr-2 text-slate-500">
                 <Calendar size={18} />
@@ -123,7 +111,6 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
               )}
             </div>
 
-            {/* View Toggle */}
             <div className="flex p-1 bg-slate-100 rounded-lg shadow-inner self-start md:self-center">
               <button 
                 onClick={() => setView('drill')}
@@ -148,7 +135,6 @@ const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories
         </CardContent>
       </Card>
 
-      {/* Main Visualization Card */}
       <Card className="min-h-[600px] flex flex-col">
         <CardHeader 
           title={view === 'drill' ? "Category Breakdown" : "Spending Trends"} 
