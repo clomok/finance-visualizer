@@ -153,7 +153,6 @@ function App() {
 
           <Dashboard 
             data={activeFile.data} 
-            fileName={activeFile.fileName} 
             showIncome={showIncome}
             showExpense={showExpense}
             excludedCategories={excludedCategories}

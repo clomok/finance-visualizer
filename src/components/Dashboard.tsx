@@ -9,7 +9,6 @@ import { Calendar, PieChart, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: Transaction[];
-  fileName: string;
   showIncome: boolean;
   showExpense: boolean;
   excludedCategories: string[];
@@ -22,7 +21,7 @@ const TIME_FRAMES: TimeFrame[] = [
   'This Year', 'Last Year'
 ];
 
-const Dashboard = ({ data, fileName, showIncome, showExpense, excludedCategories }: Props) => {
+const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props) => {
   const [view, setView] = useState<'drill' | 'trend'>('drill');
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('This Month');
   const [customStart, setCustomStart] = useState('');
