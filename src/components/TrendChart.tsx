@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { 
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, TooltipProps 
 } from 'recharts';
-import { startOfWeek, startOfMonth, format, parseISO } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { Transaction } from '../types';
 import { Button } from './ui/Button';
 import TransactionList from './TransactionList';
@@ -10,27 +10,16 @@ import { BarChart3, LineChart as LineChartIcon, CalendarDays, CalendarRange, Cal
 
 interface Props {
   transactions: Transaction[];
+  dateRange: { start: Date; end: Date }; 
 }
 
 type GroupBy = 'day' | 'week' | 'month';
 type ChartType = 'stacked' | 'line';
 
 const PALETTE = [
-  '#3b82f6', // Blue
-  '#10b981', // Green
-  '#f59e0b', // Orange
-  '#8b5cf6', // Purple
-  '#ec4899', // Pink
-  '#14b8a6', // Teal
-  '#eab308', // Amber
-  '#ef4444', // Red
-  '#06b6d4', // Cyan
-  '#6366f1', // Indigo
-  '#84cc16', // Lime
-  '#d946ef', // Magenta
-  '#f97316', // Orange-Red
-  '#10b981', // Emerald
-  '#64748b', // Slate
+  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', 
+  '#14b8a6', '#eab308', '#ef4444', '#06b6d4', '#6366f1', 
+  '#84cc16', '#d946ef', '#f97316', '#10b981', '#64748b'
 ];
 
 const getColor = (str: string) => {
@@ -84,12 +73,11 @@ export default function TrendChart({ transactions }: Props) {
   const [chartType, setChartType] = useState<ChartType>('stacked');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
   
-  // Interaction State
   const [selectedSlice, setSelectedSlice] = useState<{
     label: string;
-    category: string;
-    txns: Transaction[];
     total: number;
+    txns: Transaction[];
+    range: { start: Date; end: Date }; 
   } | null>(null);
 
   const categories = useMemo(() => {
@@ -97,7 +85,12 @@ export default function TrendChart({ transactions }: Props) {
     return Array.from(cats).sort();
   }, [transactions]);
 
-  // Helper to generate the key (e.g. "2023-01-01") for a given date based on current grouping
+  const categoryColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach(c => map[c] = getColor(c));
+    return map;
+  }, [categories]);
+
   const getKey = (dateStr: string) => {
     const date = parseISO(dateStr);
     if (groupBy === 'month') return format(startOfMonth(date), 'yyyy-MM-dd');
@@ -107,18 +100,16 @@ export default function TrendChart({ transactions }: Props) {
 
   const formatLabel = (dateStr: string) => {
     const date = parseISO(dateStr);
-    if (groupBy === 'month') return format(date, 'MMM yyyy');
-    if (groupBy === 'week') return `Wk of ${format(date, 'MMM d')}`;
-    return format(date, 'MMM d');
+    if (groupBy === 'month') return format(date, 'MMMM yyyy'); // Full Month Name
+    if (groupBy === 'week') return `Week of ${format(date, 'MMM d, yyyy')}`;
+    return format(date, 'MMM d, yyyy');
   };
 
-  // Aggregate Data
   const data = useMemo(() => {
     const groupedData: Record<string, any> = {};
 
     transactions.forEach(t => {
       const key = getKey(t.date);
-      
       if (!groupedData[key]) {
         groupedData[key] = { 
           date: key,
@@ -127,7 +118,6 @@ export default function TrendChart({ transactions }: Props) {
         };
         categories.forEach(c => groupedData[key][c] = 0);
       }
-
       const val = Math.abs(t.amount);
       groupedData[key][t.categoryGroup] += val;
       groupedData[key].total += val;
@@ -136,37 +126,44 @@ export default function TrendChart({ transactions }: Props) {
     return Object.values(groupedData).sort((a: any, b: any) => a.date.localeCompare(b.date));
   }, [transactions, groupBy, categories]);
 
-  // Click Handler
-  // dataPoint is the aggregated object for that time slice (week/month)
-  // category is the specific bar segment clicked (e.g., "Food")
-  const handleBarClick = (dataPoint: any, category: string) => {
-    const clickedDateKey = dataPoint.date; // The 'key' we generated (yyyy-MM-dd start of period)
+  // Click Handler - Fix: Unwrap payload safely
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleBarClick = (eventData: any) => {
+    // Recharts passes an event object. The real data is in .payload
+    // Depending on version/chart type, it might be nested differently.
+    const dataPoint = eventData.payload || eventData;
+    
+    if (!dataPoint || !dataPoint.date) return;
 
-    // Filter relevant transactions
-    const relevantTxns = transactions.filter(t => {
-      // 1. Must match the category
-      if (t.categoryGroup !== category) return false;
-      // 2. Must match the time period
-      return getKey(t.date) === clickedDateKey;
-    });
+    const dateStr = dataPoint.date; 
+    const dateObj = parseISO(dateStr);
+    
+    let rangeStart = dateObj;
+    let rangeEnd = dateObj;
 
+    if (groupBy === 'week') {
+      rangeStart = startOfWeek(dateObj);
+      rangeEnd = endOfWeek(dateObj);
+    } else if (groupBy === 'month') {
+      rangeStart = startOfMonth(dateObj);
+      rangeEnd = endOfMonth(dateObj);
+    } 
+
+    const relevantTxns = transactions.filter(t => getKey(t.date) === dateStr);
     const total = relevantTxns.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     setSelectedSlice({
-      label: `${category} - ${dataPoint.label}`,
-      category,
+      label: dataPoint.label, // "Week of Oct 12, 2025"
       txns: relevantTxns,
-      total
+      total,
+      range: { start: rangeStart, end: rangeEnd }
     });
   };
 
   const toggleCategory = (cat: string) => {
     const newHidden = new Set(hiddenCategories);
-    if (newHidden.has(cat)) {
-      newHidden.delete(cat);
-    } else {
-      newHidden.add(cat);
-    }
+    if (newHidden.has(cat)) newHidden.delete(cat);
+    else newHidden.add(cat);
     setHiddenCategories(newHidden);
   };
 
@@ -185,7 +182,7 @@ export default function TrendChart({ transactions }: Props) {
                 key={g}
                 size="sm" 
                 variant={groupBy === g ? 'primary' : 'ghost'} 
-                onClick={() => { setGroupBy(g); setSelectedSlice(null); }} // Clear selection on view change
+                onClick={() => { setGroupBy(g); setSelectedSlice(null); }}
                 className="capitalize"
               >
                 {g === 'day' && <Calendar size={14} className="mr-1" />}
@@ -247,7 +244,8 @@ export default function TrendChart({ transactions }: Props) {
                     fill={color} 
                     stackId="a" 
                     radius={[0, 0, 0, 0]} 
-                    onClick={(dataPoint) => handleBarClick(dataPoint, cat)}
+                    // FIX: Pass the payload data correctly
+                    onClick={(data, index) => handleBarClick(data)}
                     cursor="pointer"
                   />
                 );
@@ -261,13 +259,7 @@ export default function TrendChart({ transactions }: Props) {
                     strokeWidth={3} 
                     dot={{ r: 4, strokeWidth: 0, fill: color }}
                     activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                    // Line charts pass the full payload, but accessing specific point data is trickier via click
-                    // For now, filtering mainly works best on Bars. 
-                    // To support lines, we'd need to use the 'activePayload' from tooltip clicks or similar.
-                    // We'll enable basic click, but it might just pass the whole time slice.
-                    onClick={(e: any) => {
-                        if (e && e.payload) handleBarClick(e.payload, cat);
-                    }}
+                    activeDot={{ onClick: (e: any, payload: any) => handleBarClick(payload.payload) }}
                   />
                 );
               }
@@ -276,7 +268,6 @@ export default function TrendChart({ transactions }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* Interactive Legend */}
       <div className="bg-white rounded-xl p-4 border border-slate-200">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -317,13 +308,14 @@ export default function TrendChart({ transactions }: Props) {
         </div>
       </div>
 
-      {/* MODULAR TRANSACTION LIST */}
       {selectedSlice && (
         <TransactionList 
           title={selectedSlice.label}
           total={selectedSlice.total}
           transactions={selectedSlice.txns}
-          color={getColor(selectedSlice.category)}
+          dateRange={selectedSlice.range} 
+          groupBy="group" 
+          categoryColors={categoryColors} 
           onClose={() => setSelectedSlice(null)}
         />
       )}

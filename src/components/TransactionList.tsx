@@ -1,24 +1,42 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, ChevronRight, PieChart, TrendingUp, CalendarClock } from 'lucide-react';
+import { ArrowLeft, ChevronRight, PieChart, TrendingUp, CalendarClock, CalendarRange } from 'lucide-react';
 import { Transaction } from '../types';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format, parseISO } from 'date-fns';
 
 interface Props {
   title: string;
   total: number;
   transactions: Transaction[];
   color?: string;
-  dateRange: { start: Date; end: Date }; // New Prop
+  dateRange: { start: Date; end: Date };
   onSelect?: (categoryName: string) => void;
   onClose: () => void;
+  groupBy?: 'group' | 'sub';
+  categoryColors?: Record<string, string>; 
 }
 
-export default function TransactionList({ title, total, transactions, color = '#3b82f6', dateRange, onSelect, onClose }: Props) {
+export default function TransactionList({ 
+  title, 
+  total, 
+  transactions, 
+  color = '#3b82f6', 
+  dateRange, 
+  onSelect, 
+  onClose,
+  groupBy = 'sub',
+  categoryColors = {}
+}: Props) {
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
+
+  // 1. Group Data
   const groupedSubs = useMemo(() => {
     const groups: Record<string, { total: number; count: number; txns: Transaction[] }> = {};
     
     transactions.forEach(t => {
-      const key = t.categorySub || 'Unspecified';
+      const key = groupBy === 'group' 
+        ? t.categoryGroup 
+        : (t.categorySub || 'Unspecified');
+
       if (!groups[key]) groups[key] = { total: 0, count: 0, txns: [] };
       
       groups[key].total += Math.abs(t.amount);
@@ -29,13 +47,41 @@ export default function TransactionList({ title, total, transactions, color = '#
     return Object.entries(groups)
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.total - a.total);
-  }, [transactions]);
+  }, [transactions, groupBy]);
 
-  // Calculate days span from the GLOBAL range
+  // Calculate formatted date string for context
+  const dateLabel = useMemo(() => {
+    if (!dateRange.start || !dateRange.end) return '';
+    return `${format(dateRange.start, 'MMM d')} - ${format(dateRange.end, 'MMM d, yyyy')}`;
+  }, [dateRange]);
+
   const daysSpan = Math.max(1, differenceInDays(dateRange.end, dateRange.start) + 1);
 
   const isSingleCategory = groupedSubs.length === 1;
-  const activeView = isSingleCategory ? 'list' : 'summary';
+  const activeView = (isSingleCategory && groupBy === 'sub') || selectedSub ? 'list' : 'summary';
+
+  const currentTransactions = selectedSub 
+    ? groupedSubs.find(g => g.name === selectedSub)?.txns || []
+    : (isSingleCategory ? transactions : []);
+    
+  const currentTitle = selectedSub || title;
+  
+  // Resolve Color
+  const activeColor = selectedSub && categoryColors[selectedSub] ? categoryColors[selectedSub] : color;
+  // If we are drilled down, the "Header Color" should match the sub-category
+  const headerColor = selectedSub ? activeColor : color;
+
+  const currentTotal = selectedSub 
+    ? groupedSubs.find(g => g.name === selectedSub)?.total || 0
+    : total;
+
+  const handleBack = () => {
+    if (selectedSub && (!isSingleCategory || groupBy === 'group')) {
+      setSelectedSub(null);
+    } else {
+      onClose();
+    }
+  };
 
   // --- RENDER: Summary Cards ---
   const renderSummary = () => (
@@ -45,25 +91,30 @@ export default function TransactionList({ title, total, transactions, color = '#
         const averageTxn = sub.total / sub.count;
         const averageDay = sub.total / daysSpan;
         
+        const cardColor = categoryColors[sub.name] || color;
+        
         return (
           <button
             key={sub.name}
-            onClick={() => onSelect && onSelect(sub.name)}
+            onClick={() => {
+                if (onSelect) {
+                    onSelect(sub.name);
+                } else {
+                    setSelectedSub(sub.name);
+                }
+            }}
             className="relative flex flex-col p-5 bg-white border border-slate-100 rounded-xl transition-all group text-left overflow-hidden hover:shadow-lg hover:-translate-y-0.5"
             style={{
                 boxShadow: `0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.05)`
             }}
           >
-            {/* Dynamic Background Wash */}
             <div 
                 className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300"
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: cardColor }}
             />
-            
-            {/* Colored Accent Line - Thinner (w-1) */}
             <div 
                 className="absolute left-0 top-0 bottom-0 w-1 transition-all" 
-                style={{ backgroundColor: color }} 
+                style={{ backgroundColor: cardColor }} 
             />
 
             <div className="flex justify-between items-start w-full mb-4 z-10 pl-3">
@@ -72,9 +123,7 @@ export default function TransactionList({ title, total, transactions, color = '#
                   {sub.name}
                 </div>
                 
-                {/* Metrics Grid */}
                 <div className="flex flex-col gap-1.5">
-                    {/* Primary Metric: Avg / Day (Bold) */}
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                         <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
                             <CalendarClock size={12} />
@@ -83,7 +132,6 @@ export default function TransactionList({ title, total, transactions, color = '#
                         <span>${averageDay.toFixed(2)}</span>
                     </div>
 
-                    {/* Secondary Metric: Avg / Txn (Lighter) */}
                     {sub.count > 1 && (
                         <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
                             <div className="flex items-center gap-1 px-1.5">
@@ -96,9 +144,7 @@ export default function TransactionList({ title, total, transactions, color = '#
                 </div>
               </div>
               
-              <div 
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shrink-0"
-              >
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shrink-0">
                 <ChevronRight size={18} />
               </div>
             </div>
@@ -106,20 +152,12 @@ export default function TransactionList({ title, total, transactions, color = '#
             <div className="mt-auto pl-3 z-10 w-full">
                <div className="flex items-baseline justify-between mb-2">
                    <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">{sub.count} {sub.count === 1 ? 'txn' : 'txns'}</span>
-                   <span 
-                        className="font-mono font-bold text-xl"
-                        style={{ color: color }} 
-                   >
+                   <span className="font-mono font-bold text-xl" style={{ color: cardColor }}>
                     ${sub.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                    </span>
                </div>
-
-               {/* Progress Bar Container */}
                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                        className="h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${percent}%`, backgroundColor: color }} 
-                    />
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: cardColor }} />
                </div>
             </div>
           </button>
@@ -128,6 +166,7 @@ export default function TransactionList({ title, total, transactions, color = '#
     </div>
   );
 
+  // --- RENDER: Transaction Rows ---
   const renderTable = () => (
     <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm max-h-[500px] overflow-y-auto">
       <table className="min-w-full text-sm text-left bg-white relative">
@@ -140,17 +179,21 @@ export default function TransactionList({ title, total, transactions, color = '#
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t) => (
+          {currentTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t) => (
             <tr key={t.id} className="hover:bg-slate-50 transition-colors group">
               <td className="p-3">
                   <div 
                       className="w-1.5 h-6 rounded-full group-hover:scale-y-110 transition-transform" 
-                      style={{ backgroundColor: color }}
+                      style={{ backgroundColor: activeColor }}
                   />
               </td>
               <td className="p-3 text-slate-600 whitespace-nowrap font-mono text-xs">{t.date}</td>
               <td className="p-3 text-slate-800 font-medium">
                   <div className="truncate max-w-[200px] sm:max-w-md">{t.description}</div>
+                  {/* Show Category context if we are in a mixed list */}
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    {t.categoryGroup} {t.categorySub && `› ${t.categorySub}`}
+                  </div>
               </td>
               <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
                 ${Math.abs(t.amount).toFixed(2)}
@@ -168,32 +211,44 @@ export default function TransactionList({ title, total, transactions, color = '#
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div className="flex items-center gap-3">
           <button 
-            onClick={onClose}
-            className="p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+            onClick={handleBack}
+            className={`p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors ${groupBy === 'group' && !selectedSub ? 'opacity-0 pointer-events-none' : ''}`}
             title="Back"
           >
             <ArrowLeft size={20} />
           </button>
           
           <div>
+            <div className="flex items-center gap-2 mb-1">
+                {/* Date Context Badge */}
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wide">
+                    <CalendarRange size={10} />
+                    {dateLabel}
+                </div>
+            </div>
+
             <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span>{title}</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: headerColor }} />
+              {/* Breadcrumb Logic */}
+              {selectedSub && (
+                  <span className="text-slate-400 font-normal">{title} <span className="text-slate-300 mx-1">/</span></span>
+              )}
+              <span>{currentTitle}</span>
             </h3>
             
             {activeView === 'list' && (
-               <p className="text-sm text-slate-500">{transactions.length} transactions</p>
+               <p className="text-sm text-slate-500 ml-5">{currentTransactions.length} transactions</p>
             )}
             {activeView === 'summary' && (
-               <p className="text-sm text-slate-500 flex items-center gap-1">
-                 <PieChart size={14} /> Breakdown by Category
+               <p className="text-sm text-slate-500 flex items-center gap-1 ml-5">
+                 <PieChart size={14} /> Breakdown by {groupBy === 'group' ? 'Category' : 'Sub-Category'}
                </p>
             )}
           </div>
         </div>
 
         <div className="font-mono text-xl font-bold text-slate-700 bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
-          ${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          ${currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
         </div>
       </div>
       

@@ -39,7 +39,6 @@ const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props)
   // 2. Filter Data
   const filteredData = useMemo(() => {
     const allDates = data.map(t => t.date);
-    // Use the filter utility (which uses the same logic as getDateRange internally)
     const validDates = new Set(
       filterByDate(
         allDates, 
@@ -156,7 +155,7 @@ const Dashboard = ({ data, showIncome, showExpense, excludedCategories }: Props)
         <CardContent className="flex-1">
           {view === 'drill' 
             ? <DrillDownChart transactions={filteredData} dateRange={dateRange} /> 
-            : <TrendChart transactions={filteredData} />
+            : <TrendChart transactions={filteredData} dateRange={dateRange} /> // PASSING DATE RANGE HERE
           }
         </CardContent>
       </Card>
