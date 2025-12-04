@@ -249,6 +249,10 @@ function App() {
           </div>
         </CardContent>
       </Card>
+
+      <p className="mt-8 text-center text-slate-500 text-sm">
+        Built with ❤️ by <a href="https://menu.thekylestyle.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Kyle</a>
+      </p>
     </div>
   );
 }
