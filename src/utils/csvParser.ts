@@ -26,6 +26,7 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
               if (!row['Date'] || !row['Amount']) return null;
 
               const cleanDesc = cleanString(row['Description']);
+              const cleanAccount = cleanString(row['Account']);
               
               // Logic: If empty, mark as <none>. Do not force 'Uncategorized'.
               let fullCategory = cleanString(row['Category']);
@@ -42,6 +43,7 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
                 category: fullCategory,
                 categoryGroup,
                 categorySub,
+                account: cleanAccount,
                 amount: parseAmount(row['Amount'])
               };
             })

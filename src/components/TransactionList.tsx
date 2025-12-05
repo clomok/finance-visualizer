@@ -15,6 +15,26 @@ interface Props {
   categoryColors?: Record<string, string>; 
 }
 
+// Helper to ensure text colors are readable on white background
+const getTextTint = (colorStr?: string) => {
+  if (!colorStr) return undefined;
+  
+  // If it's HSL (from DrillDownChart), darken it to ensure readability
+  if (colorStr.startsWith('hsl')) {
+    const match = colorStr.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+(\.\d+)?)%\)/);
+    if (match) {
+      const h = match[1];
+      const s = match[2];
+      // Force luminance to be at most 45% for text
+      let l = parseFloat(match[3]);
+      if (l > 45) l = 45; 
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+  }
+  // If it's Hex (from TrendChart) or other, return as is (usually already readable)
+  return colorStr;
+};
+
 export default function TransactionList({ 
   title, 
   total, 
@@ -92,6 +112,7 @@ export default function TransactionList({
         const averageDay = sub.total / daysSpan;
         
         const cardColor = categoryColors[sub.name] || color;
+        const textTint = getTextTint(cardColor); // Get darkened color for text
         
         return (
           <button
@@ -152,7 +173,7 @@ export default function TransactionList({
             <div className="mt-auto pl-3 z-10 w-full">
                <div className="flex items-baseline justify-between mb-2">
                    <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">{sub.count} {sub.count === 1 ? 'txn' : 'txns'}</span>
-                   <span className="font-mono font-bold text-xl" style={{ color: cardColor }}>
+                   <span className="font-mono font-bold text-xl" style={{ color: textTint }}>
                     ${sub.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                    </span>
                </div>
@@ -174,32 +195,43 @@ export default function TransactionList({
           <tr>
             <th className="p-3 w-1"></th> 
             <th className="p-3">Date</th>
+            <th className="p-3">Account</th>
             <th className="p-3">Description</th>
             <th className="p-3 text-right">Amount</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {currentTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t) => (
-            <tr key={t.id} className="hover:bg-slate-50 transition-colors group">
-              <td className="p-3">
-                  <div 
-                      className="w-1.5 h-6 rounded-full group-hover:scale-y-110 transition-transform" 
-                      style={{ backgroundColor: activeColor }}
-                  />
-              </td>
-              <td className="p-3 text-slate-600 whitespace-nowrap font-mono text-xs">{t.date}</td>
-              <td className="p-3 text-slate-800 font-medium">
-                  <div className="truncate max-w-[200px] sm:max-w-md">{t.description}</div>
-                  {/* Show Category context if we are in a mixed list */}
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    {t.categoryGroup} {t.categorySub && `› ${t.categorySub}`}
-                  </div>
-              </td>
-              <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
-                ${Math.abs(t.amount).toFixed(2)}
-              </td>
-            </tr>
-          ))}
+          {currentTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t) => {
+            // Determine tint color for the category text
+            const rawCatColor = categoryColors[t.categorySub] || categoryColors[t.categoryGroup];
+            const textTint = getTextTint(rawCatColor);
+
+            return (
+              <tr key={t.id} className="hover:bg-slate-50 transition-colors group">
+                <td className="p-3">
+                    <div 
+                        className="w-1.5 h-6 rounded-full group-hover:scale-y-110 transition-transform" 
+                        style={{ backgroundColor: activeColor }}
+                    />
+                </td>
+                <td className="p-3 text-slate-600 whitespace-nowrap font-mono text-xs">{t.date}</td>
+                <td className="p-3 text-slate-500 whitespace-nowrap text-xs">{t.account}</td>
+                <td className="p-3 text-slate-800 font-medium">
+                    <div className="truncate max-w-[200px] sm:max-w-md">{t.description}</div>
+                    {/* Category with Color Tint */}
+                    <div 
+                      className={`text-[10px] mt-0.5 ${!textTint ? 'text-slate-400' : ''}`}
+                      style={{ color: textTint }}
+                    >
+                      {t.categoryGroup} {t.categorySub && `› ${t.categorySub}`}
+                    </div>
+                </td>
+                <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
+                  ${Math.abs(t.amount).toFixed(2)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
