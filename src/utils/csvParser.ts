@@ -36,6 +36,12 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
               const categoryGroup = catParts[0].trim();
               const categorySub = catParts.length > 1 ? catParts[1].trim() : categoryGroup;
 
+              // Parse Tags (Optional Column)
+              const rawTags = row['Tags'] ? row['Tags'].toString() : '';
+              const tags = rawTags 
+                ? rawTags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
+                : [];
+
               return {
                 id: `txn-${Date.now()}-${index}`,
                 date: new Date(row['Date']).toISOString().split('T')[0],
@@ -44,6 +50,7 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
                 categoryGroup,
                 categorySub,
                 account: cleanAccount,
+                tags,
                 amount: parseAmount(row['Amount'])
               };
             })

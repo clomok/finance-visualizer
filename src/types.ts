@@ -5,7 +5,8 @@ export interface Transaction {
   category: string;
   categoryGroup: string; // Top level
   categorySub: string;   // Bottom level
-  account: string;       // Added Account field
+  account: string;
+  tags: string[];        // Added Tags field
   amount: number;
 }
 

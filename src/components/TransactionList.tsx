@@ -197,6 +197,7 @@ export default function TransactionList({
             <th className="p-3">Date</th>
             <th className="p-3">Account</th>
             <th className="p-3">Description</th>
+            <th className="p-3 text-right">Tags</th> 
             <th className="p-3 text-right">Amount</th>
           </tr>
         </thead>
@@ -225,6 +226,18 @@ export default function TransactionList({
                     >
                       {t.categoryGroup} {t.categorySub && `› ${t.categorySub}`}
                     </div>
+                </td>
+                {/* Tags Column - Right Aligned next to Amount */}
+                <td className="p-3 text-right">
+                    {t.tags && t.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {t.tags.map(tag => (
+                          <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                 </td>
                 <td className={`p-3 text-right font-mono font-bold ${t.amount > 0 ? 'text-green-600' : 'text-slate-700'}`}>
                   ${Math.abs(t.amount).toFixed(2)}

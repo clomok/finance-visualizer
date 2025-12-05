@@ -205,12 +205,22 @@ function App() {
                 <p>
                   This tool is purpose-built for <a href="https://www.tillerhq.com/" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">Tiller</a> exports, but works with any standard CSV.
                 </p>
+                
                 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
                   <p className="font-bold text-slate-800 mb-1 text-xs uppercase tracking-wide">Category Nesting</p>
                   <p>
                     Supports 2-tier categories using a hyphen:
                     <br />
                     <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 mt-1.5 inline-block font-mono text-xs">Parent - Child</code>
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                  <p className="font-bold text-slate-800 mb-1 text-xs uppercase tracking-wide">Transaction Tagging</p>
+                  <p>
+                    Parse tags separated by commas to make connections across categories.
+                    <br />
+                    <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 mt-1.5 inline-block font-mono text-xs">Tag1, Tag2</code>
                   </p>
                 </div>
               </div>
@@ -223,17 +233,29 @@ function App() {
                 CSV Requirements
               </h2>
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-600 text-sm h-full shadow-sm">
-                <p className="mb-4 text-xs">
-                  Your file <span className="font-bold text-slate-800">must</span> include these headers (case-sensitive):
-                </p>
                 
-                <div className="grid grid-cols-1 gap-2">
-                  {['Date', 'Amount', 'Description', 'Category', 'Account'].map(col => (
-                    <div key={col} className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-mono text-xs font-bold shadow-sm">
-                      <CheckCircle2 size={14} className="text-green-500" />
-                      {col}
-                    </div>
-                  ))}
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-bold text-slate-800 uppercase tracking-wide">Required Columns</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {['Date', 'Amount', 'Description', 'Category', 'Account'].map(col => (
+                      <div key={col} className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-mono text-xs font-bold shadow-sm">
+                        <CheckCircle2 size={14} className="text-green-500" />
+                        {col}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-bold text-slate-500 uppercase tracking-wide">Optional Columns</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {['Tags'].map(col => (
+                      <div key={col} className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 font-mono text-xs font-bold shadow-sm border-dashed">
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 flex items-center justify-center" />
+                        {col}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 <p className="mt-4 text-[10px] text-slate-400 italic text-center">
