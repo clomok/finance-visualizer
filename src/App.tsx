@@ -3,7 +3,7 @@ import { parseCSV } from './utils/csvParser';
 import { saveFile, getAllFiles, deleteFile, clearAllFiles } from './utils/storage';
 import { FileRecord } from './types';
 import Dashboard from './components/Dashboard';
-import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown } from 'lucide-react';
+import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown, FileText, CheckCircle2 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { MultiSelect } from './components/ui/MultiSelect';
@@ -187,32 +187,63 @@ function App() {
             </div>
           </div>
           
-          <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200 text-sm flex items-center justify-center font-medium">
+          <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200 text-sm flex items-center justify-center font-medium shadow-sm">
             <span role="img" aria-label="info" className="mr-2 text-xl">⚠️</span>
-            No file is ever uploaded to a server.  All your data stays 100% offline and in your browser only.
+            No file is ever uploaded to a server. All your data stays 100% offline and in your browser only.
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Usage Notes</h2>
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm space-y-2">
-              <p>To use this visualizer, export your transactions from <span className="font-bold">Tiller</span> as a <span className="font-bold">CSV</span> file and upload it using the input above.</p>
-              <p>This visualizer is currently designed to be used with <span className="font-bold">2 tiers of categories</span> separated by a hyphen. For example:</p>
-              <ul className="list-disc list-inside ml-4">
-                <li><code>Parent - Child</code> (e.g.  <code>Food - Groceries</code>)</li>
-              </ul>
-              <p>You are not required to use multi-tiered categories, but the feature is currently fully supported for 2 tiers of categories.</p>
+          {/* Info Grid */}
+          <div className="grid md:grid-cols-2 gap-6">
+            
+            {/* Usage Notes */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <FileText size={16} />
+                Usage Notes
+              </h2>
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-600 text-sm space-y-3 h-full shadow-sm">
+                <p>
+                  This tool is purpose-built for <a href="https://www.tillerhq.com/" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">Tiller</a> exports, but works with any standard CSV.
+                </p>
+                <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                  <p className="font-bold text-slate-800 mb-1 text-xs uppercase tracking-wide">Category Nesting</p>
+                  <p>
+                    Supports 2-tier categories using a hyphen:
+                    <br />
+                    <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200 mt-1.5 inline-block font-mono text-xs">Parent - Child</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* CSV Requirements */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <FileSpreadsheet size={16} />
+                CSV Requirements
+              </h2>
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-600 text-sm h-full shadow-sm">
+                <p className="mb-4 text-xs">
+                  Your file <span className="font-bold text-slate-800">must</span> include these headers (case-sensitive):
+                </p>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  {['Date', 'Amount', 'Description', 'Category', 'Account'].map(col => (
+                    <div key={col} className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-mono text-xs font-bold shadow-sm">
+                      <CheckCircle2 size={14} className="text-green-500" />
+                      {col}
+                    </div>
+                  ))}
+                </div>
+                
+                <p className="mt-4 text-[10px] text-slate-400 italic text-center">
+                  * Column order does not matter.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Next Changes</h2>
-            <ul className="list-disc list-inside bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm space-y-1">
-              <li>Enable 3 tiers of category support.</li>
-              <li>Integrate groups as top-level category.</li>
-            </ul>
-          </div>
-
-          <div className="space-y-4">
+          <div className="space-y-4 border-t border-slate-100 pt-8">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Previous Imports</h2>
             {files.length === 0 && (
               <div className="text-center py-8 text-slate-400 italic bg-slate-50 rounded-lg border border-slate-100">
