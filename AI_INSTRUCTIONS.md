@@ -5,16 +5,34 @@
 **Finance Visualizer (Homelab Edition)** is a self-hosted, offline-first Single Page Application (SPA) for visualizing personal finance data.
 
 - **Goal:** Visualize CSV exports from Tiller (or generic CSVs) without sending data to a server.
-- **Key Philosophy:** Privacy-first. Data lives in the browser (IndexedDB) or memory only. The Docker container is read-only and unprivileged.
+- **Key Philosophy:**
+  1.  **Privacy-First:** Data lives in the browser (IndexedDB) or memory only.
+  2.  **Security-First:** The Docker container is read-only and unprivileged. Dependencies are pinned to ensure reproducibility.
+  3.  **Stability-First:** We prefer "Stable/LTS" versions over "Bleeding Edge" updates.
 
-## Tech Stack
+## Tech Stack (Pinned Versions)
 
-- **Frontend:** React + Vite + TypeScript
-- **Styling:** Tailwind CSS (Utility-first)
-- **Charts:** Nivo (Sunburst/Drill-down), Recharts (Trends/Bar/Line)
-- **State/Storage:** React State + IndexedDB (idb package)
-- **Icons:** Lucide-React
-- **Build/Deploy:** Docker (Nginx Unprivileged Alpine)
+_Current Status: **0 Vulnerabilities** (Dec 2025)_
+
+- **Frontend:** React `18.3.1` + Vite `5.4.21` + TypeScript `5.6.3`
+- **Styling:** Tailwind CSS `3.4.17` (Utility-first)
+- **Charts:**
+  - Nivo `0.87.0` (Sunburst/Drill-down)
+  - Recharts `2.13.3` (Trends/Bar/Line)
+- **State/Storage:** React State + IndexedDB (`idb` `8.0.0`)
+- **Icons:** Lucide-React `0.460.0`
+- **Build/Deploy:** Docker (Node 22 LTS Builder + Nginx Unprivileged 1.27 Alpine)
+
+## Security & Maintenance Protocols
+
+1.  **Pinning Strategy:** All dependencies in `package.json` are pinned to exact versions (no `^` or `~`). The `package-lock.json` is committed and treated as the source of truth.
+2.  **Vulnerability Patching:**
+    - We use `npm audit` to check for security flaws.
+    - **Critical:** We currently use `overrides` in `package.json` to force `esbuild` to version `^0.25.0` to patch a moderate vulnerability in Vite 5. **Do not remove this override** without verifying Vite has released a native fix.
+3.  **Docker Hardening:**
+    - Base images are pinned (e.g., `node:22-alpine`, `nginxinc/nginx-unprivileged:1.27-alpine`).
+    - Container runs as non-root.
+    - Filesystem is read-only (except `/tmp`).
 
 ## Workflow Requirements (STRICT)
 
@@ -26,7 +44,6 @@
     - AI provides full file code.
     - User applies changes and commits to the repo.
     - User confirms success or asks for adjustments.
-    - Repeat.
 
 ## CSV & Data Structure
 
@@ -51,3 +68,27 @@
 - `/src/components/ui`: Reusable primitives (Buttons, Cards, Selects).
 - `/src/utils`: Helper logic (CSV parsing, Date math, Storage).
 - `/src/types.ts`: Centralized interfaces (`Transaction`, `FileRecord`).
+
+## Roadmap & Status
+
+### Phase 1: Security Hardening (✅ Completed)
+
+- [x] Pin all dependencies.
+- [x] Hardening Dockerfile (User/Groups/Read-only).
+- [x] Commit lockfile.
+- [x] Achieve 0 Vulnerabilities (via Overrides).
+
+### Phase 2: Feature Development (🚧 In Progress)
+
+- [ ] (Pending user input)
+
+### Phase 3: Modernization Watchlist (🛑 On Hold)
+
+_detected via `npm outdated` - Dec 2025_
+_Do not upgrade these without a dedicated migration project._
+
+- **React 19:** Major update. Wait for ecosystem (Nivo/Recharts) to catch up.
+- **Tailwind v4:** Major rewrite. Requires config migration.
+- **Vite 7:** Major update. Breaking changes likely.
+- **Recharts v3:** Breaking API changes.
+- **Nivo 0.99+:** Significant version jump.
