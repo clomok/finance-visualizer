@@ -50,9 +50,8 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 - **Source:** Designed for "Tiller" exports but compatible with any CSV.
 - **Required Columns:** `Date`, `Amount`, `Description`, `Category`, `Account`.
 - **Optional Columns:** `Tags` (comma-separated).
-- **Category Logic:** Uses a 2-tier system separated by a hyphen (e.g., `Food - Groceries`).
-  - Parent: `Food`
-  - Child: `Groceries`
+- **Category Logic (Current):** Uses a 2-tier system separated by a hyphen (e.g., `Food - Groceries`).
+  - _Goal:_ See Roadmap Phase 2 (Expand to infinite nesting).
 
 ## Code Style & Conventions
 
@@ -80,7 +79,10 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 
 ### Phase 2: Feature Development (🚧 In Progress)
 
-- [ ] (Pending user input)
+- [ ] **Multi-tier Category Support:**
+  - Expand parsing logic to support 5+ levels of nesting (e.g., `Discretionary - Food - Fast Food - Burgers`).
+  - Update charts to cycle visualization 2 levels at a time (Parent/Child) regardless of depth.
+- [ ] (Pending future requests)
 
 ### Phase 3: Modernization Watchlist (🛑 On Hold)
 
