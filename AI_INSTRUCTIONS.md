@@ -88,6 +88,7 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
   - Implemented "Wrapper Node" strategy to keep parent ring visible when drilled down.
   - Navigation: Inner circle resets to group view; Center button always returns to Home.
   - **Visual Polish:** Added logic to render single-tier categories (no sub-cat) as a single solid ring instead of a double ring.
+  - **UX:** Added timed notification alert when a drilled-down category has no data in the new time frame.
 - [x] **Trend Chart Improvements:**
   - Switched to Derived State architecture.
   - Added visual highlighting (Opacity fade for Stacked, Reference Line for Line charts).

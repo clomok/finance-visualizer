@@ -1,7 +1,7 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
-import { Home } from 'lucide-react';
+import { Home, X } from 'lucide-react';
 import TransactionList from './TransactionList';
 
 interface Props {
@@ -49,6 +49,7 @@ const getContrastingTextColor = (hslString: string) => {
 export default function DrillDownChart({ transactions, dateRange }: Props) {
   const [viewRoot, setViewRoot] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
   
   // Ref for auto-scrolling to list
   const transactionListRef = useRef<HTMLDivElement>(null);
@@ -77,7 +78,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           name: t.categoryGroup, 
           id: t.categoryGroup,
           total: 0,
-          loc: 0, // Direct value accumulator
+          loc: 0, 
           children: [],
           txns: []
         };
@@ -86,13 +87,9 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
       groups[t.categoryGroup].total += amount;
       groups[t.categoryGroup].txns.push(t);
       
-      // LOGIC UPDATE: Handle Single-Tier vs Multi-Tier
       if (t.categoryGroup === t.categorySub) {
-          // Case 1: Top-level transaction (No Hyphen)
-          // Add directly to the group's own value (loc)
           groups[t.categoryGroup].loc += amount;
       } else {
-          // Case 2: Child Category
           const childId = `${t.categoryGroup}.${t.categorySub}`;
           let child = groups[t.categoryGroup].children.find((c: any) => c.id === childId);
           if (!child) {
@@ -114,31 +111,26 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     const sortedGroups = Object.values(groups).sort((a: any, b: any) => b.total - a.total);
 
     sortedGroups.forEach((group, index) => {
-      // HANDLE MIXED GROUPS:
-      // If a group has both Children AND Direct Values, Nivo ignores the direct value (parent value).
-      // We must move the direct value to a synthetic "General" child node.
       if (group.children.length > 0 && group.loc > 0) {
           const directTxns = group.txns.filter((t: Transaction) => t.categoryGroup === t.categorySub);
           const generalChild = {
-              name: 'General', // Or "Other"
+              name: 'General', 
               id: `${group.name}.General`,
               loc: group.loc,
               total: group.loc,
               txns: directTxns
           };
           group.children.push(generalChild);
-          group.loc = 0; // Reset parent direct value so it sums children correctly
+          group.loc = 0; 
       }
 
       const base = PALETTE[index % PALETTE.length];
       group.color = `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
       colors[group.name] = group.color;
 
-      // Colorize Children
       if (group.children.length > 0) {
           group.children.sort((a: any, b: any) => b.total - a.total);
           const childCount = group.children.length;
-          
           group.children.forEach((child: any, i: number) => {
             const minL = base.l + 10; 
             const maxL = 92;
@@ -154,6 +146,31 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
 
     return { fullTree: root, categoryColors: colors };
   }, [transactions]);
+
+  // Derived State: Validate if the current viewRoot actually exists in the new data
+  const activeGroupNode = useMemo(() => {
+      if (!viewRoot) return null;
+      return fullTree.children.find(g => g.id === viewRoot) || null;
+  }, [fullTree, viewRoot]);
+
+  // Effect: Reset state and Notify if we are zoomed into a category that no longer exists
+  useEffect(() => {
+      if (viewRoot && !activeGroupNode) {
+          setNotification(`No ${viewRoot} transactions this time frame`);
+          setViewRoot(null);
+          setSelectedNodeId(null);
+      }
+  }, [viewRoot, activeGroupNode]);
+
+  // Effect: Auto-hide notification
+  useEffect(() => {
+      if (notification) {
+          const timer = setTimeout(() => {
+              setNotification(null);
+          }, 5000);
+          return () => clearTimeout(timer);
+      }
+  }, [notification]);
 
   // Derive the selected node object from the current tree using the ID
   const selectedNode = useMemo(() => {
@@ -175,20 +192,19 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   }, [fullTree, selectedNodeId]);
 
   const displayData = useMemo(() => {
-    if (!viewRoot) return fullTree;
-    const groupNode = fullTree.children.find(g => g.id === viewRoot);
-    if (groupNode) {
+    // Only drill down if we have a valid activeGroupNode
+    if (activeGroupNode) {
         return { 
             id: 'DrillRoot',
             name: 'Total', 
             color: '#ffffff',
-            children: [groupNode],
-            displayedTotal: groupNode.total, 
+            children: [activeGroupNode],
+            displayedTotal: activeGroupNode.total, 
             loc: undefined 
         };
     }
     return fullTree;
-  }, [fullTree, viewRoot]);
+  }, [fullTree, activeGroupNode]);
 
   const scrollToTransactions = () => {
     setTimeout(() => {
@@ -197,7 +213,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   };
 
   const handleNodeClick = (node: any) => {
-    // 1. Handle Center/Root Click (Depth 0)
     if (node.depth === 0) {
         if (viewRoot) {
             setViewRoot(null);
@@ -206,22 +221,17 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
         return;
     }
 
-    // 2. Handle Group Click (Depth 1)
     if (node.depth === 1) {
         if (viewRoot) {
              // Zoomed In: Clicking inner ring resets to Group View
              setSelectedNodeId(viewRoot);
         } else {
              // Root View:
-             // Check if it is a LEAF Group (Single Ring)
              const isLeafGroup = !node.data.children || node.data.children.length === 0;
-             
              if (isLeafGroup) {
-                 // Select it directly, don't zoom
                  setSelectedNodeId(node.data.id);
                  scrollToTransactions();
              } else {
-                 // It has children, Zoom In
                  setViewRoot(node.data.id);
                  setSelectedNodeId(node.data.id);
              }
@@ -229,7 +239,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
         return;
     }
 
-    // 3. Handle Leaf Click (Depth 2+)
     setSelectedNodeId(node.data.id);
     scrollToTransactions();
   };
@@ -242,11 +251,9 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   };
 
   const handleListSelection = (name: string) => {
-    // Root Level -> Zoom In
     if (!viewRoot) {
         const group = fullTree.children.find(g => g.name === name);
         if (group) {
-            // Check if leaf group
             if (group.children.length === 0) {
                 setSelectedNodeId(group.id);
                 scrollToTransactions();
@@ -258,7 +265,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
         return;
     }
 
-    // Zoomed In -> Select Child
     const contextNode = selectedNode || displayData;
     const searchRoot = (contextNode.id === 'DrillRoot') ? contextNode.children[0] : contextNode;
 
@@ -271,7 +277,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     }
   };
 
-  const overlayTotal = viewRoot ? (displayData as any).displayedTotal : (fullTree as any).total;
+  const overlayTotal = activeGroupNode ? (displayData as any).displayedTotal : (fullTree as any).total;
 
   const getPercentage = (value: number) => {
       if (!overlayTotal || overlayTotal === 0) return '0.0';
@@ -282,21 +288,21 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
 
   const isLeafSelected = selectedNode && selectedNode.id !== viewRoot && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total';
-  const isGroupZoomed = !!viewRoot;
+  const isGroupZoomed = !!activeGroupNode; // Use derived valid state
   const showBackButton = isGroupZoomed; 
   
   let centerTitle = "TOTAL";
   if (isLeafSelected && selectedNode) {
       centerTitle = selectedNode.name;
-  } else if (viewRoot) {
-      const group = fullTree.children.find(g => g.id === viewRoot);
-      if (group) centerTitle = group.name;
+  } else if (activeGroupNode) {
+      centerTitle = activeGroupNode.name;
   }
 
   const centerAmount = isLeafSelected ? selectedNode.total : overlayTotal;
   const backLabel = "Back to Total";
   const backButtonStyle = {}; 
 
+  // Safely determine list props using activeGroupNode
   const listProps = selectedNode && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total' ? {
       title: selectedNode.name,
       total: selectedNode.total,
@@ -306,16 +312,33 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   } : {
       title: centerTitle === "TOTAL" ? "All Categories" : centerTitle,
       total: centerAmount,
-      transactions: viewRoot 
-        ? fullTree.children.find(g => g.id === viewRoot)?.txns || [] 
+      transactions: activeGroupNode 
+        ? activeGroupNode.txns
         : transactions,
-      color: viewRoot ? categoryColors[centerTitle] : '#cbd5e1',
-      groupBy: viewRoot ? 'sub' as const : 'group' as const
+      color: activeGroupNode ? categoryColors[centerTitle] : '#cbd5e1',
+      groupBy: activeGroupNode ? 'sub' as const : 'group' as const
   };
 
   return (
     <div className="flex flex-col h-full relative">
       <div className="h-[600px] w-full relative">
+        
+        {/* Notification Overlay */}
+        {notification && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="bg-amber-100 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg shadow-md flex items-center gap-3">
+                    <span className="text-sm font-medium">{notification}</span>
+                    <button 
+                        onClick={() => setNotification(null)}
+                        className="text-amber-600 hover:text-amber-900 transition-colors"
+                        title="Close"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            </div>
+        )}
+
         <ResponsiveSunburst
           data={displayData}
           margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
@@ -339,12 +362,10 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           arcLabel={(d: any) => { 
              if (d.depth === 0) return '';
              
-             // If Leaf Logic:
              const isLeaf = !d.children || d.children.length === 0;
              if (!isLeaf) {
-                 // Hide label for inner rings unless it's a "Single Ring" leaf group
-                 // In our data, a single ring group HAS NO CHILDREN, so isLeaf is true.
-                 // So if isLeaf is false, it's a parent ring -> Hide label.
+                 // Hide labels for Depth 1 (Parent Ring) ONLY if we are zoomed in
+                 if (activeGroupNode && d.depth === 1) return ''; 
                  return '';
              }
 
