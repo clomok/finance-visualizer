@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Finance Visualizer (Homelab Edition)** is a self-hosted, offline-first Single Page Application (SPA) for visualizing personal finance data.
+**Finance Visualizer (Homelab Edition)** is a self-hosted, offline-first Single Page Application (SPA) for visualizing personal finance export data from [Tiller](https://tiller.com/) (or any standard CSV).
 
 - **Goal:** Visualize CSV exports from Tiller (or generic CSVs) without sending data to a server.
 - **Key Philosophy:**
@@ -61,6 +61,12 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 - **Icons:** Use `lucide-react`.
 - **Formatting:** Prettier standard (2 spaces indent, single quotes, semicolons).
 
+## Architecture & Implementation Notes
+
+- **State Management in Charts:** When building interactive charts (e.g., `DrillDownChart`), store **IDs** (strings) in state rather than full objects. This prevents stale data issues when parent props (like `dateRange`) update and trigger a re-calculation of the dataset.
+- **Responsive Tables:** Use `overflow-x-auto` on table containers to ensure wide content (like Tags) remains accessible on smaller screens.
+- **UX Scrolling:** When user interaction changes the primary view focus (e.g., clicking a chart leaf node), programmatically scroll to the relevant detail section (e.g., `TransactionList`).
+
 ## Directory Structure
 
 - `/src/components`: UI components (Dashboard, Charts, Lists).
@@ -79,10 +85,15 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 
 ### Phase 2: Feature Development (🚧 In Progress)
 
+- [x] **Drill-Down Chart Improvements:**
+  - Fixed stale state issues when changing timeframes.
+  - Added auto-scroll to transaction list on selection.
+- [x] **Transaction List Improvements:**
+  - Added horizontal scrolling for small screens.
+  - Improved column spacing (Tags width).
 - [ ] **Multi-tier Category Support:**
   - Expand parsing logic to support 5+ levels of nesting (e.g., `Discretionary - Food - Fast Food - Burgers`).
   - Update charts to cycle visualization 2 levels at a time (Parent/Child) regardless of depth.
-- [ ] (Pending future requests)
 
 ### Phase 3: Modernization Watchlist (🛑 On Hold)
 
