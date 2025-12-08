@@ -77,6 +77,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           name: t.categoryGroup, 
           id: t.categoryGroup,
           total: 0,
+          loc: 0, // Direct value accumulator
           children: [],
           txns: []
         };
@@ -85,46 +86,68 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
       groups[t.categoryGroup].total += amount;
       groups[t.categoryGroup].txns.push(t);
       
-      const childId = `${t.categoryGroup}.${t.categorySub}`;
-      let child = groups[t.categoryGroup].children.find((c: any) => c.id === childId);
-      if (!child) {
-        child = { 
-          name: t.categorySub, 
-          id: childId,
-          loc: 0, 
-          total: 0,
-          txns: [] 
-        };
-        groups[t.categoryGroup].children.push(child);
+      // LOGIC UPDATE: Handle Single-Tier vs Multi-Tier
+      if (t.categoryGroup === t.categorySub) {
+          // Case 1: Top-level transaction (No Hyphen)
+          // Add directly to the group's own value (loc)
+          groups[t.categoryGroup].loc += amount;
+      } else {
+          // Case 2: Child Category
+          const childId = `${t.categoryGroup}.${t.categorySub}`;
+          let child = groups[t.categoryGroup].children.find((c: any) => c.id === childId);
+          if (!child) {
+            child = { 
+              name: t.categorySub, 
+              id: childId,
+              loc: 0, 
+              total: 0,
+              txns: [] 
+            };
+            groups[t.categoryGroup].children.push(child);
+          }
+          child.loc += amount;
+          child.total += amount;
+          child.txns.push(t);
       }
-      
-      child.loc += amount;
-      child.total += amount;
-      child.txns.push(t);
     });
 
     const sortedGroups = Object.values(groups).sort((a: any, b: any) => b.total - a.total);
 
     sortedGroups.forEach((group, index) => {
+      // HANDLE MIXED GROUPS:
+      // If a group has both Children AND Direct Values, Nivo ignores the direct value (parent value).
+      // We must move the direct value to a synthetic "General" child node.
+      if (group.children.length > 0 && group.loc > 0) {
+          const directTxns = group.txns.filter((t: Transaction) => t.categoryGroup === t.categorySub);
+          const generalChild = {
+              name: 'General', // Or "Other"
+              id: `${group.name}.General`,
+              loc: group.loc,
+              total: group.loc,
+              txns: directTxns
+          };
+          group.children.push(generalChild);
+          group.loc = 0; // Reset parent direct value so it sums children correctly
+      }
+
       const base = PALETTE[index % PALETTE.length];
       group.color = `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
-      
-      // Store group color for the list
       colors[group.name] = group.color;
 
-      group.children.sort((a: any, b: any) => b.total - a.total);
-
-      const childCount = group.children.length;
-      group.children.forEach((child: any, i: number) => {
-        const minL = base.l + 10; 
-        const maxL = 92;
-        const step = childCount > 1 ? (maxL - minL) / (childCount - 1) : 0;
-        const newL = minL + (i * step);
-        child.color = `hsl(${base.h}, ${base.s}%, ${newL}%)`;
-        
-        // Store child color if needed (though list usually uses parent color for grouping)
-        colors[child.name] = child.color;
-      });
+      // Colorize Children
+      if (group.children.length > 0) {
+          group.children.sort((a: any, b: any) => b.total - a.total);
+          const childCount = group.children.length;
+          
+          group.children.forEach((child: any, i: number) => {
+            const minL = base.l + 10; 
+            const maxL = 92;
+            const step = childCount > 1 ? (maxL - minL) / (childCount - 1) : 0;
+            const newL = minL + (i * step);
+            child.color = `hsl(${base.h}, ${base.s}%, ${newL}%)`;
+            colors[child.name] = child.color;
+          });
+      }
 
       root.children.push(group);
     });
@@ -136,7 +159,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
     if (selectedNodeId === 'Total') return fullTree;
-    if (selectedNodeId === 'DrillRoot') return fullTree; // Should not happen often but safe fallback
+    if (selectedNodeId === 'DrillRoot') return fullTree; 
 
     // Search Groups (Depth 1)
     const group = fullTree.children.find((g: any) => g.id === selectedNodeId);
@@ -155,20 +178,15 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     if (!viewRoot) return fullTree;
     const groupNode = fullTree.children.find(g => g.id === viewRoot);
     if (groupNode) {
-        // WRAPPER STRATEGY:
-        // Wrap the single group in a dummy root. 
-        // This forces the "Group" to be rendered as Depth 1 (Inner Ring)
-        // and its children as Depth 2 (Outer Ring).
         return { 
             id: 'DrillRoot',
-            name: 'Total', // Hidden by overlay anyway
+            name: 'Total', 
             color: '#ffffff',
             children: [groupNode],
             displayedTotal: groupNode.total, 
             loc: undefined 
         };
     }
-    // Fallback if viewRoot no longer exists in current data
     return fullTree;
   }, [fullTree, viewRoot]);
 
@@ -180,7 +198,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
 
   const handleNodeClick = (node: any) => {
     // 1. Handle Center/Root Click (Depth 0)
-    // In drill view, this is the "DrillRoot" wrapper.
     if (node.depth === 0) {
         if (viewRoot) {
             setViewRoot(null);
@@ -190,17 +207,24 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     }
 
     // 2. Handle Group Click (Depth 1)
-    // In drill view, this is the Inner Ring (the Parent Category).
     if (node.depth === 1) {
         if (viewRoot) {
-             // We are zoomed in and clicked the inner ring (Parent). 
-             // BEHAVIOR CHANGE: Instead of zooming out to total, we just reset 
-             // selection to the Group View (deselecting any leaf).
+             // Zoomed In: Clicking inner ring resets to Group View
              setSelectedNodeId(viewRoot);
         } else {
-             // We are at Global Root, clicked a slice -> Zoom In
-             setViewRoot(node.data.id);
-             setSelectedNodeId(node.data.id);
+             // Root View:
+             // Check if it is a LEAF Group (Single Ring)
+             const isLeafGroup = !node.data.children || node.data.children.length === 0;
+             
+             if (isLeafGroup) {
+                 // Select it directly, don't zoom
+                 setSelectedNodeId(node.data.id);
+                 scrollToTransactions();
+             } else {
+                 // It has children, Zoom In
+                 setViewRoot(node.data.id);
+                 setSelectedNodeId(node.data.id);
+             }
         }
         return;
     }
@@ -211,7 +235,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   };
 
   const handleBackClick = () => {
-    // BEHAVIOR CHANGE: Always go back to Total (Root)
     if (viewRoot) {
         setViewRoot(null);
         setSelectedNodeId(null);
@@ -219,19 +242,24 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   };
 
   const handleListSelection = (name: string) => {
-    // Case 1: We are at Root Level, user clicks a Group Card -> Zoom In
+    // Root Level -> Zoom In
     if (!viewRoot) {
         const group = fullTree.children.find(g => g.name === name);
         if (group) {
-            setViewRoot(group.id);
-            setSelectedNodeId(group.id);
+            // Check if leaf group
+            if (group.children.length === 0) {
+                setSelectedNodeId(group.id);
+                scrollToTransactions();
+            } else {
+                setViewRoot(group.id);
+                setSelectedNodeId(group.id);
+            }
         }
         return;
     }
 
-    // Case 2: We are Zoomed In, user clicks a Sub-Category Card -> Show Details
+    // Zoomed In -> Select Child
     const contextNode = selectedNode || displayData;
-    // If displayData is our wrapper, the group is child[0]
     const searchRoot = (contextNode.id === 'DrillRoot') ? contextNode.children[0] : contextNode;
 
     if (searchRoot && searchRoot.children) {
@@ -255,28 +283,20 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
 
   const isLeafSelected = selectedNode && selectedNode.id !== viewRoot && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total';
   const isGroupZoomed = !!viewRoot;
-  const showBackButton = isGroupZoomed; // Always show if zoomed in
+  const showBackButton = isGroupZoomed; 
   
-  // Resolve Title for Center
   let centerTitle = "TOTAL";
   if (isLeafSelected && selectedNode) {
       centerTitle = selectedNode.name;
   } else if (viewRoot) {
-      // Find the group name from fullTree to be safe
       const group = fullTree.children.find(g => g.id === viewRoot);
       if (group) centerTitle = group.name;
   }
 
   const centerAmount = isLeafSelected ? selectedNode.total : overlayTotal;
-
-  // Fixed Label for Back Button
   const backLabel = "Back to Total";
-
-  // Determine back button color style
-  // Keep simple standard grey/white
   const backButtonStyle = {}; 
 
-  // Determine what to show in the list
   const listProps = selectedNode && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total' ? {
       title: selectedNode.name,
       total: selectedNode.total,
@@ -304,7 +324,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           cornerRadius={2}
           theme={{ text: { fontSize: 14, fontWeight: 600 } }}
           borderWidth={((node: any) => {
-             // Highlight selected leaf
              if (selectedNodeId && node.data.id === selectedNodeId && node.data.id !== viewRoot) return 5;
              return 1;
           }) as any}
@@ -318,14 +337,14 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           inheritColorFromParent={false}
           enableArcLabels={true}
           arcLabel={(d: any) => { 
-             // Logic to show label:
-             // 1. If we are DrillRoot (depth 0), show nothing.
              if (d.depth === 0) return '';
              
-             // 2. If standard leaf logic
+             // If Leaf Logic:
              const isLeaf = !d.children || d.children.length === 0;
              if (!isLeaf) {
-                 if (viewRoot && d.depth === 1) return ''; // Inner ring parent doesn't need label
+                 // Hide label for inner rings unless it's a "Single Ring" leaf group
+                 // In our data, a single ring group HAS NO CHILDREN, so isLeaf is true.
+                 // So if isLeaf is false, it's a parent ring -> Hide label.
                  return '';
              }
 
