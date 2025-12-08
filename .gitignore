@@ -9,7 +9,6 @@ coverage
 # Production Build
 dist
 build
-package-lock.json
 
 # Misc
 .DS_Store
