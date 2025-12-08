@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
-import { ArrowLeft, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 import TransactionList from './TransactionList';
 
 interface Props {
@@ -57,7 +57,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   const { fullTree, categoryColors } = useMemo(() => {
     const root = { 
       name: "Total", 
-      id: "Total",
+      id: "Total", 
       color: "#ffffff", 
       total: 0, 
       children: [] as any[] 
@@ -339,7 +339,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           onClick={handleNodeClick}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tooltip={({ value, color, data }: any) => {
-            if (data.id === 'DrillRoot') return null;
+            if (data.id === 'DrillRoot') return <></>;
             return (
                 <div className="bg-white p-2 border border-slate-200 shadow-lg rounded flex items-center gap-2 z-50">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
