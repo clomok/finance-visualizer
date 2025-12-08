@@ -72,13 +72,6 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
   - When user interaction opens a detail view (e.g., clicking a chart bar), programmatically scroll to the `TransactionList` using `ref.scrollIntoView`.
 - **Responsive Tables:** Use `overflow-x-auto` on table containers.
 
-## Directory Structure
-
-- `/src/components`: UI components (Dashboard, Charts, Lists).
-- `/src/components/ui`: Reusable primitives (Buttons, Cards, Selects).
-- `/src/utils`: Helper logic (CSV parsing, Date math, Storage).
-- `/src/types.ts`: Centralized interfaces (`Transaction`, `FileRecord`).
-
 ## Roadmap & Status
 
 ### Phase 1: Security Hardening (✅ Completed)
@@ -92,8 +85,9 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 
 - [x] **Drill-Down Chart Improvements:**
   - Fixed stale state issues when changing timeframes.
-  - Implemeneted "Wrapper Node" strategy to keep parent ring visible when drilled down.
+  - Implemented "Wrapper Node" strategy to keep parent ring visible when drilled down.
   - Navigation: Inner circle resets to group view; Center button always returns to Home.
+  - **Visual Polish:** Added logic to render single-tier categories (no sub-cat) as a single solid ring instead of a double ring.
 - [x] **Trend Chart Improvements:**
   - Switched to Derived State architecture.
   - Added visual highlighting (Opacity fade for Stacked, Reference Line for Line charts).
