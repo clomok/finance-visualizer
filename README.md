@@ -17,7 +17,7 @@ Before starting, ensure you have these installed:
 
 ---
 
-## 🚀 First Time Install
+## First Time Install
 
 1.  **Open your Terminal** (Command Prompt on Windows, Terminal on Mac/Linux).
 
@@ -25,7 +25,7 @@ Before starting, ensure you have these installed:
     Clone the repository (or extract the ZIP file and navigate into the folder):
 
     ```bash
-    git clone https://github.com/clomok/finance-visualizer
+    git clone [https://github.com/clomok/finance-visualizer](https://github.com/clomok/finance-visualizer)
     cd finance-visualizer
     ```
 
@@ -34,6 +34,12 @@ Before starting, ensure you have these installed:
 
     ```bash
     npm install
+    ```
+
+    **Security Check:** It is recommended to run a vulnerability audit before proceeding:
+
+    ```bash
+    npm audit
     ```
 
 4.  **Build & Run:**
@@ -49,7 +55,7 @@ Before starting, ensure you have these installed:
 
 ---
 
-## 🔄 How to Update
+## How to Update
 
 When you want to update the app with the latest features:
 
@@ -68,11 +74,11 @@ When you want to update the app with the latest features:
 
 ---
 
-## 🛠 Troubleshooting & Resetting
+## Troubleshooting & Resetting
 
 If the app isn't loading, the build fails, or you just want to completely reset the installation to a clean state (the "Nuclear Option"), follow the instructions for your operating system below.
 
-### 🪟 For Windows Users (PowerShell)
+### For Windows Users (PowerShell)
 
 1.  Open **PowerShell**.
 2.  Navigate to your `finance-visualizer` folder.
@@ -93,13 +99,15 @@ npm install
 docker-compose up --build -d
 ```
 
-### 🍎 For Mac & 🐧 Linux Users
+### For Mac & Linux Users
 
 1.  Open your **Terminal**.
 2.  Navigate to your `finance-visualizer` folder.
 3.  Copy and paste this entire block:
 
-```bash
+Bash
+
+```
 # 1. Stop the running app
 docker-compose down
 
@@ -126,3 +134,4 @@ docker-compose up --build -d
   - Container runs as a non-root user.
   - Filesystem is Read-Only.
   - Strict Content Security Policy (CSP) headers enabled.
+  - Dependencies and Base Images are pinned to specific versions for supply-chain security.
