@@ -25,7 +25,7 @@ Before starting, ensure you have these installed:
     Clone the repository (or extract the ZIP file and navigate into the folder):
 
     ```bash
-    git clone [https://github.com/clomok/finance-visualizer](https://github.com/clomok/finance-visualizer)
+    git clone https://github.com/clomok/finance-visualizer
     cd finance-visualizer
     ```
 
