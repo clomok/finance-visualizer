@@ -63,9 +63,14 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 
 ## Architecture & Implementation Notes
 
-- **State Management in Charts:** When building interactive charts (e.g., `DrillDownChart`), store **IDs** (strings) in state rather than full objects. This prevents stale data issues when parent props (like `dateRange`) update and trigger a re-calculation of the dataset.
-- **Responsive Tables:** Use `overflow-x-auto` on table containers to ensure wide content (like Tags) remains accessible on smaller screens.
-- **UX Scrolling:** When user interaction changes the primary view focus (e.g., clicking a chart leaf node), programmatically scroll to the relevant detail section (e.g., `TransactionList`).
+- **State Management in Charts (Derived State):**
+  - **Do NOT** store full transaction objects in state for selections (e.g., `selectedSlice`).
+  - **DO** store only the ID or Key (e.g., `selectedDateKey`, `selectedNodeId`).
+  - **DO** use `useMemo` to derive the display data on-the-fly.
+  - _Reasoning:_ This ensures that when global filters (Date Range, Category exclusions) change, the chart selection immediately reflects the new data or closes gracefully if the data no longer exists.
+- **UX Scrolling:**
+  - When user interaction opens a detail view (e.g., clicking a chart bar), programmatically scroll to the `TransactionList` using `ref.scrollIntoView`.
+- **Responsive Tables:** Use `overflow-x-auto` on table containers.
 
 ## Directory Structure
 
@@ -87,7 +92,12 @@ _Current Status: **0 Vulnerabilities** (Dec 2025)_
 
 - [x] **Drill-Down Chart Improvements:**
   - Fixed stale state issues when changing timeframes.
-  - Added auto-scroll to transaction list on selection.
+  - Implemeneted "Wrapper Node" strategy to keep parent ring visible when drilled down.
+  - Navigation: Inner circle resets to group view; Center button always returns to Home.
+- [x] **Trend Chart Improvements:**
+  - Switched to Derived State architecture.
+  - Added visual highlighting (Opacity fade for Stacked, Reference Line for Line charts).
+  - Linked selection to Transaction List with auto-scroll.
 - [x] **Transaction List Improvements:**
   - Added horizontal scrolling for small screens.
   - Improved column spacing (Tags width).

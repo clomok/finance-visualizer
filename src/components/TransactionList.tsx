@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { ArrowLeft, ChevronRight, PieChart, TrendingUp, CalendarClock, CalendarRange } from 'lucide-react';
 import { Transaction } from '../types';
 import { differenceInDays, format } from 'date-fns';
@@ -47,6 +47,7 @@ export default function TransactionList({
   categoryColors = {}
 }: Props) {
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // 1. Group Data
   const groupedSubs = useMemo(() => {
@@ -122,6 +123,10 @@ export default function TransactionList({
                     onSelect(sub.name);
                 } else {
                     setSelectedSub(sub.name);
+                    // Scroll to top of list when drilling down
+                    setTimeout(() => {
+                      listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
                 }
             }}
             className="relative flex flex-col p-5 bg-white border border-slate-100 rounded-xl transition-all group text-left overflow-hidden hover:shadow-lg hover:-translate-y-0.5"
@@ -253,7 +258,7 @@ export default function TransactionList({
   );
 
   return (
-    <div className="mt-6 border-t border-slate-100 pt-6 animate-in slide-in-from-bottom-4">
+    <div ref={listRef} className="mt-6 border-t border-slate-100 pt-6 animate-in slide-in-from-bottom-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div className="flex items-center gap-3">

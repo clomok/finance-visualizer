@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { 
-  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, TooltipProps 
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, TooltipProps, Cell, ReferenceLine 
 } from 'recharts';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { Transaction } from '../types';
@@ -73,12 +73,8 @@ export default function TrendChart({ transactions }: Props) {
   const [chartType, setChartType] = useState<ChartType>('stacked');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
   
-  const [selectedSlice, setSelectedSlice] = useState<{
-    label: string;
-    total: number;
-    txns: Transaction[];
-    range: { start: Date; end: Date }; 
-  } | null>(null);
+  // STATE CHANGE: We only store the ID (Date Key) now, not the full object.
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
   const categories = useMemo(() => {
     const cats = new Set(transactions.map(t => t.categoryGroup));
@@ -126,17 +122,25 @@ export default function TrendChart({ transactions }: Props) {
     return Object.values(groupedData).sort((a: any, b: any) => a.date.localeCompare(b.date));
   }, [transactions, groupBy, categories]);
 
-  // Click Handler - Fix: Unwrap payload safely
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleBarClick = (eventData: any) => {
-    // Recharts passes an event object. The real data is in .payload
-    // Depending on version/chart type, it might be nested differently.
-    const dataPoint = eventData.payload || eventData;
-    
-    if (!dataPoint || !dataPoint.date) return;
+  // Derive the selected label for the ReferenceLine (Line Chart Mode)
+  const selectedLabel = useMemo(() => {
+    if (!selectedDateKey) return undefined;
+    const entry = data.find(d => d.date === selectedDateKey);
+    return entry ? entry.label : undefined;
+  }, [selectedDateKey, data]);
 
-    const dateStr = dataPoint.date; 
-    const dateObj = parseISO(dateStr);
+  // DERIVED STATE: Re-calculate the selected slice based on current transactions
+  // This ensures that when 'transactions' prop updates (timeframe change), the list updates too.
+  const selectedSlice = useMemo(() => {
+    if (!selectedDateKey) return null;
+
+    const relevantTxns = transactions.filter(t => getKey(t.date) === selectedDateKey);
+    
+    // If the selected date no longer exists in the filtered data (e.g. year change), close the view.
+    if (relevantTxns.length === 0) return null;
+
+    const total = relevantTxns.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const dateObj = parseISO(selectedDateKey);
     
     let rangeStart = dateObj;
     let rangeEnd = dateObj;
@@ -149,15 +153,30 @@ export default function TrendChart({ transactions }: Props) {
       rangeEnd = endOfMonth(dateObj);
     } 
 
-    const relevantTxns = transactions.filter(t => getKey(t.date) === dateStr);
-    const total = relevantTxns.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-
-    setSelectedSlice({
-      label: dataPoint.label, // "Week of Oct 12, 2025"
-      txns: relevantTxns,
+    return {
+      label: formatLabel(selectedDateKey),
       total,
+      txns: relevantTxns,
       range: { start: rangeStart, end: rangeEnd }
-    });
+    };
+  }, [selectedDateKey, transactions, groupBy]);
+
+
+  // Click Handler - Fix: Unwrap payload safely
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleBarClick = (eventData: any) => {
+    // Recharts passes an event object. The real data is in .payload
+    // Depending on version/chart type, it might be nested differently.
+    const dataPoint = eventData.payload || eventData;
+    
+    if (!dataPoint || !dataPoint.date) return;
+    
+    // Toggle selection: if clicking the same one, clear it.
+    if (selectedDateKey === dataPoint.date) {
+        setSelectedDateKey(null);
+    } else {
+        setSelectedDateKey(dataPoint.date);
+    }
   };
 
   const toggleCategory = (cat: string) => {
@@ -182,7 +201,7 @@ export default function TrendChart({ transactions }: Props) {
                 key={g}
                 size="sm" 
                 variant={groupBy === g ? 'primary' : 'ghost'} 
-                onClick={() => { setGroupBy(g); setSelectedSlice(null); }}
+                onClick={() => { setGroupBy(g); setSelectedDateKey(null); }}
                 className="capitalize"
               >
                 {g === 'day' && <Calendar size={14} className="mr-1" />}
@@ -232,6 +251,11 @@ export default function TrendChart({ transactions }: Props) {
             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
             <Legend content={() => null} />
             
+            {/* Show Line Indicator if in Line Mode and item selected */}
+            {chartType === 'line' && selectedLabel && (
+              <ReferenceLine x={selectedLabel} stroke="#94a3b8" strokeDasharray="3 3" />
+            )}
+
             {categories.map((cat) => {
               if (hiddenCategories.has(cat)) return null;
               const color = getColor(cat);
@@ -241,13 +265,24 @@ export default function TrendChart({ transactions }: Props) {
                   <Bar 
                     key={cat} 
                     dataKey={cat} 
-                    fill={color} 
                     stackId="a" 
                     radius={[0, 0, 0, 0]} 
-                    // FIX: Pass the payload data correctly
                     onClick={(data) => handleBarClick(data)}
                     cursor="pointer"
-                  />
+                  >
+                     {/* Map over data to apply opacity to unselected bars.
+                       This effectively "highlights" the selected group by dimming the rest.
+                     */}
+                     {data.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={color}
+                          opacity={selectedDateKey && entry.date !== selectedDateKey ? 0.3 : 1}
+                          // Optional: Add a subtle transition for smooth fading
+                          style={{ transition: 'opacity 0.2s ease-in-out' }}
+                        />
+                     ))}
+                  </Bar>
                 );
               } else {
                 return (
@@ -259,6 +294,7 @@ export default function TrendChart({ transactions }: Props) {
                     strokeWidth={3} 
                     dot={{ r: 4, strokeWidth: 0, fill: color }}
                     activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2, onClick: (payload: any) => handleBarClick(payload.payload) }}
+                    // Dim unselected lines slightly if we wanted, but ReferenceLine is usually cleaner for line charts
                   />
                 );
               }
@@ -315,7 +351,7 @@ export default function TrendChart({ transactions }: Props) {
           dateRange={selectedSlice.range} 
           groupBy="group" 
           categoryColors={categoryColors} 
-          onClose={() => setSelectedSlice(null)}
+          onClose={() => setSelectedDateKey(null)}
         />
       )}
 

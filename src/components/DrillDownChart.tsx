@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Home } from 'lucide-react';
 import TransactionList from './TransactionList';
 
 interface Props {
@@ -136,6 +136,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
     if (selectedNodeId === 'Total') return fullTree;
+    if (selectedNodeId === 'DrillRoot') return fullTree; // Should not happen often but safe fallback
 
     // Search Groups (Depth 1)
     const group = fullTree.children.find((g: any) => g.id === selectedNodeId);
@@ -154,8 +155,15 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     if (!viewRoot) return fullTree;
     const groupNode = fullTree.children.find(g => g.id === viewRoot);
     if (groupNode) {
+        // WRAPPER STRATEGY:
+        // Wrap the single group in a dummy root. 
+        // This forces the "Group" to be rendered as Depth 1 (Inner Ring)
+        // and its children as Depth 2 (Outer Ring).
         return { 
-            ...groupNode, 
+            id: 'DrillRoot',
+            name: 'Total', // Hidden by overlay anyway
+            color: '#ffffff',
+            children: [groupNode],
             displayedTotal: groupNode.total, 
             loc: undefined 
         };
@@ -171,39 +179,42 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   };
 
   const handleNodeClick = (node: any) => {
-    const isRoot = node.id === "Total" || node.id === viewRoot;
-    const isGroup = (viewRoot ? node.depth === 0 : node.depth === 1); 
-    const isLeaf = !node.children || node.children.length === 0;
-
-    if (viewRoot) {
-        if (isRoot) {
+    // 1. Handle Center/Root Click (Depth 0)
+    // In drill view, this is the "DrillRoot" wrapper.
+    if (node.depth === 0) {
+        if (viewRoot) {
             setViewRoot(null);
             setSelectedNodeId(null);
-        } else {
-            setSelectedNodeId(node.data.id);
-            if (isLeaf) scrollToTransactions();
         }
-    } else {
-        if (isGroup && node.id !== "Total") {
-            setViewRoot(node.id);
-            setSelectedNodeId(node.data.id); 
-        } else if (isLeaf) {
-            setSelectedNodeId(node.data.id);
-            scrollToTransactions();
-        }
+        return;
     }
+
+    // 2. Handle Group Click (Depth 1)
+    // In drill view, this is the Inner Ring (the Parent Category).
+    if (node.depth === 1) {
+        if (viewRoot) {
+             // We are zoomed in and clicked the inner ring (Parent). 
+             // BEHAVIOR CHANGE: Instead of zooming out to total, we just reset 
+             // selection to the Group View (deselecting any leaf).
+             setSelectedNodeId(viewRoot);
+        } else {
+             // We are at Global Root, clicked a slice -> Zoom In
+             setViewRoot(node.data.id);
+             setSelectedNodeId(node.data.id);
+        }
+        return;
+    }
+
+    // 3. Handle Leaf Click (Depth 2+)
+    setSelectedNodeId(node.data.id);
+    scrollToTransactions();
   };
 
   const handleBackClick = () => {
-    if (selectedNodeId && selectedNodeId !== viewRoot) {
-        // Go back up to Group view
-        setSelectedNodeId(viewRoot); 
-        return;
-    }
+    // BEHAVIOR CHANGE: Always go back to Total (Root)
     if (viewRoot) {
         setViewRoot(null);
         setSelectedNodeId(null);
-        return;
     }
   };
 
@@ -219,11 +230,12 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     }
 
     // Case 2: We are Zoomed In, user clicks a Sub-Category Card -> Show Details
-    // We use the currently selected node (likely the group) to find the child
     const contextNode = selectedNode || displayData;
-    
-    if (contextNode && contextNode.children) {
-      const child = contextNode.children.find((c: any) => c.name === name);
+    // If displayData is our wrapper, the group is child[0]
+    const searchRoot = (contextNode.id === 'DrillRoot') ? contextNode.children[0] : contextNode;
+
+    if (searchRoot && searchRoot.children) {
+      const child = searchRoot.children.find((c: any) => c.name === name);
       if (child) {
         setSelectedNodeId(child.id);
         scrollToTransactions();
@@ -241,37 +253,44 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
 
   if (transactions.length === 0) return <div className="h-full flex items-center justify-center text-slate-400">No data for this period.</div>;
 
-  const isLeafSelected = selectedNode && selectedNode.id !== viewRoot;
+  const isLeafSelected = selectedNode && selectedNode.id !== viewRoot && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total';
   const isGroupZoomed = !!viewRoot;
-  const showBackButton = isLeafSelected || isGroupZoomed;
+  const showBackButton = isGroupZoomed; // Always show if zoomed in
   
-  let backLabel = "Back";
-  if (isLeafSelected && viewRoot) backLabel = `Back to ${viewRoot}`;
-  else if (isLeafSelected) backLabel = "Back to Total";
-  else if (isGroupZoomed) backLabel = "Back to Total";
+  // Resolve Title for Center
+  let centerTitle = "TOTAL";
+  if (isLeafSelected && selectedNode) {
+      centerTitle = selectedNode.name;
+  } else if (viewRoot) {
+      // Find the group name from fullTree to be safe
+      const group = fullTree.children.find(g => g.id === viewRoot);
+      if (group) centerTitle = group.name;
+  }
 
-  const backButtonStyle = (isLeafSelected && viewRoot) ? {
-      backgroundColor: (displayData as any).color,
-      color: '#ffffff',
-      borderColor: (displayData as any).color
-  } : {};
-
-  const centerTitle = isLeafSelected ? selectedNode.name : (viewRoot ? displayData.name : "TOTAL");
   const centerAmount = isLeafSelected ? selectedNode.total : overlayTotal;
 
+  // Fixed Label for Back Button
+  const backLabel = "Back to Total";
+
+  // Determine back button color style
+  // Keep simple standard grey/white
+  const backButtonStyle = {}; 
+
   // Determine what to show in the list
-  const listProps = selectedNode ? {
+  const listProps = selectedNode && selectedNode.id !== 'DrillRoot' && selectedNode.id !== 'Total' ? {
       title: selectedNode.name,
       total: selectedNode.total,
       transactions: selectedNode.txns,
       color: selectedNode.color,
       groupBy: 'sub' as const
   } : {
-      title: "All Categories",
-      total: (fullTree as any).total,
-      transactions: transactions,
-      color: '#cbd5e1',
-      groupBy: 'group' as const
+      title: centerTitle === "TOTAL" ? "All Categories" : centerTitle,
+      total: centerAmount,
+      transactions: viewRoot 
+        ? fullTree.children.find(g => g.id === viewRoot)?.txns || [] 
+        : transactions,
+      color: viewRoot ? categoryColors[centerTitle] : '#cbd5e1',
+      groupBy: viewRoot ? 'sub' as const : 'group' as const
   };
 
   return (
@@ -285,6 +304,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           cornerRadius={2}
           theme={{ text: { fontSize: 14, fontWeight: 600 } }}
           borderWidth={((node: any) => {
+             // Highlight selected leaf
              if (selectedNodeId && node.data.id === selectedNodeId && node.data.id !== viewRoot) return 5;
              return 1;
           }) as any}
@@ -298,8 +318,17 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           inheritColorFromParent={false}
           enableArcLabels={true}
           arcLabel={(d: any) => { 
+             // Logic to show label:
+             // 1. If we are DrillRoot (depth 0), show nothing.
+             if (d.depth === 0) return '';
+             
+             // 2. If standard leaf logic
              const isLeaf = !d.children || d.children.length === 0;
-             if (!isLeaf) return ''; 
+             if (!isLeaf) {
+                 if (viewRoot && d.depth === 1) return ''; // Inner ring parent doesn't need label
+                 return '';
+             }
+
              const angle = (d.endAngle - d.startAngle) * (180 / Math.PI);
              if (angle < 10) return ''; 
              const pct = overlayTotal > 0 ? ((d.value / overlayTotal) * 100).toFixed(1) : '0.0';
@@ -309,16 +338,19 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           arcLabelsTextColor={(d: any) => getContrastingTextColor(d.color)}
           onClick={handleNodeClick}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          tooltip={({ value, color, data }: any) => (
-            <div className="bg-white p-2 border border-slate-200 shadow-lg rounded flex items-center gap-2 z-50">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span className="font-semibold text-slate-700">{data.name}:</span> 
-              <span className="font-mono">${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-              <span className="text-xs text-slate-400 ml-1">
-                ({getPercentage(value)}%)
-              </span>
-            </div>
-          )}
+          tooltip={({ value, color, data }: any) => {
+            if (data.id === 'DrillRoot') return null;
+            return (
+                <div className="bg-white p-2 border border-slate-200 shadow-lg rounded flex items-center gap-2 z-50">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                <span className="font-semibold text-slate-700">{data.name}:</span> 
+                <span className="font-mono">${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span className="text-xs text-slate-400 ml-1">
+                    ({getPercentage(value)}%)
+                </span>
+                </div>
+            );
+          }}
         />
         
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center justify-center w-48 h-48 rounded-full pointer-events-none">
@@ -330,7 +362,7 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
                         style={backButtonStyle}
                         title={backLabel}
                     >
-                        <ArrowLeft size={12} />
+                        <Home size={12} />
                         {backLabel}
                     </button>
                 )}
