@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { ResponsiveSunburst } from '@nivo/sunburst';
 import { Transaction } from '../types';
 import { ArrowLeft } from 'lucide-react';
@@ -48,8 +48,10 @@ const getContrastingTextColor = (hslString: string) => {
 
 export default function DrillDownChart({ transactions, dateRange }: Props) {
   const [viewRoot, setViewRoot] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedNode, setSelectedNode] = useState<any | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  
+  // Ref for auto-scrolling to list
+  const transactionListRef = useRef<HTMLDivElement>(null);
 
   // We need to extract the color map from the tree construction to pass to the list
   const { fullTree, categoryColors } = useMemo(() => {
@@ -130,6 +132,24 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     return { fullTree: root, categoryColors: colors };
   }, [transactions]);
 
+  // Derive the selected node object from the current tree using the ID
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    if (selectedNodeId === 'Total') return fullTree;
+
+    // Search Groups (Depth 1)
+    const group = fullTree.children.find((g: any) => g.id === selectedNodeId);
+    if (group) return group;
+
+    // Search Children (Depth 2)
+    for (const g of fullTree.children) {
+      const child = (g as any).children?.find((c: any) => c.id === selectedNodeId);
+      if (child) return child;
+    }
+    
+    return null;
+  }, [fullTree, selectedNodeId]);
+
   const displayData = useMemo(() => {
     if (!viewRoot) return fullTree;
     const groupNode = fullTree.children.find(g => g.id === viewRoot);
@@ -140,8 +160,15 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
             loc: undefined 
         };
     }
+    // Fallback if viewRoot no longer exists in current data
     return fullTree;
   }, [fullTree, viewRoot]);
+
+  const scrollToTransactions = () => {
+    setTimeout(() => {
+      transactionListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
 
   const handleNodeClick = (node: any) => {
     const isRoot = node.id === "Total" || node.id === viewRoot;
@@ -151,28 +178,31 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
     if (viewRoot) {
         if (isRoot) {
             setViewRoot(null);
-            setSelectedNode(null);
+            setSelectedNodeId(null);
         } else {
-            setSelectedNode(node.data);
+            setSelectedNodeId(node.data.id);
+            if (isLeaf) scrollToTransactions();
         }
     } else {
         if (isGroup && node.id !== "Total") {
             setViewRoot(node.id);
-            setSelectedNode(node.data); 
+            setSelectedNodeId(node.data.id); 
         } else if (isLeaf) {
-            setSelectedNode(node.data);
+            setSelectedNodeId(node.data.id);
+            scrollToTransactions();
         }
     }
   };
 
   const handleBackClick = () => {
-    if (selectedNode && selectedNode.id !== viewRoot) {
-        setSelectedNode(viewRoot ? displayData : null);
+    if (selectedNodeId && selectedNodeId !== viewRoot) {
+        // Go back up to Group view
+        setSelectedNodeId(viewRoot); 
         return;
     }
     if (viewRoot) {
         setViewRoot(null);
-        setSelectedNode(null);
+        setSelectedNodeId(null);
         return;
     }
   };
@@ -183,15 +213,21 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
         const group = fullTree.children.find(g => g.name === name);
         if (group) {
             setViewRoot(group.id);
-            setSelectedNode(group);
+            setSelectedNodeId(group.id);
         }
         return;
     }
 
     // Case 2: We are Zoomed In, user clicks a Sub-Category Card -> Show Details
-    if (selectedNode && selectedNode.children) {
-      const child = selectedNode.children.find((c: any) => c.name === name);
-      if (child) setSelectedNode(child);
+    // We use the currently selected node (likely the group) to find the child
+    const contextNode = selectedNode || displayData;
+    
+    if (contextNode && contextNode.children) {
+      const child = contextNode.children.find((c: any) => c.name === name);
+      if (child) {
+        setSelectedNodeId(child.id);
+        scrollToTransactions();
+      }
     }
   };
 
@@ -224,8 +260,6 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
   const centerAmount = isLeafSelected ? selectedNode.total : overlayTotal;
 
   // Determine what to show in the list
-  // 1. If a node is selected (Leaf or Group), show that node's data.
-  // 2. If nothing selected (Top Level), show ALL transactions grouped by Parent.
   const listProps = selectedNode ? {
       title: selectedNode.name,
       total: selectedNode.total,
@@ -251,11 +285,11 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
           cornerRadius={2}
           theme={{ text: { fontSize: 14, fontWeight: 600 } }}
           borderWidth={((node: any) => {
-             if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) return 5;
+             if (selectedNodeId && node.data.id === selectedNodeId && node.data.id !== viewRoot) return 5;
              return 1;
           }) as any}
           borderColor={(node: any) => {
-             if (selectedNode && node.data.id === selectedNode.id && node.data.id !== viewRoot) {
+             if (selectedNodeId && node.data.id === selectedNodeId && node.data.id !== viewRoot) {
                  return darkenColor(node.data.color, 40); 
              }
              return 'white'; 
@@ -310,21 +344,22 @@ export default function DrillDownChart({ transactions, dateRange }: Props) {
         </div>
       </div>
 
-      <TransactionList 
-        {...listProps}
-        dateRange={dateRange}
-        onSelect={handleListSelection} 
-        categoryColors={categoryColors} // PASSING COLOR MAP
-        onClose={() => {
-            // Close logic: if deep, go up. If top, do nothing? or clear selection?
-            if (selectedNode && selectedNode.id !== viewRoot) {
-                setSelectedNode(viewRoot ? displayData : null);
-            } else {
-                setViewRoot(null);
-                setSelectedNode(null);
-            }
-        }}
-      />
+      <div ref={transactionListRef}>
+        <TransactionList 
+          {...listProps}
+          dateRange={dateRange}
+          onSelect={handleListSelection} 
+          categoryColors={categoryColors} 
+          onClose={() => {
+              if (selectedNodeId && selectedNodeId !== viewRoot) {
+                  setSelectedNodeId(viewRoot);
+              } else {
+                  setViewRoot(null);
+                  setSelectedNodeId(null);
+              }
+          }}
+        />
+      </div>
     </div>
   );
 };

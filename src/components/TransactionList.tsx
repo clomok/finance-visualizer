@@ -189,7 +189,8 @@ export default function TransactionList({
 
   // --- RENDER: Transaction Rows ---
   const renderTable = () => (
-    <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm max-h-[500px] overflow-y-auto">
+    // FIX: overflow-x-auto allows horizontal scroll if content overflows
+    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm max-h-[500px] overflow-y-auto">
       <table className="min-w-full text-sm text-left bg-white relative">
         <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 z-10 shadow-sm">
           <tr>
@@ -197,7 +198,8 @@ export default function TransactionList({
             <th className="p-3">Date</th>
             <th className="p-3">Account</th>
             <th className="p-3">Description</th>
-            <th className="p-3 text-right">Tags</th> 
+            {/* FIX: added min-w-[130px] to make the tags column larger */}
+            <th className="p-3 text-right min-w-[130px]">Tags</th> 
             <th className="p-3 text-right">Amount</th>
           </tr>
         </thead>
