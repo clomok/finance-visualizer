@@ -171,7 +171,7 @@ function App() {
           title={
             <div className="flex items-center gap-5">
               <img 
-                src="/favicon.ico" 
+                src="./favicon.ico" 
                 alt="Logo" 
                 className="w-16 h-16 object-contain" 
               />
