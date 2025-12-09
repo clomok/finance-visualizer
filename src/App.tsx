@@ -168,7 +168,16 @@ function App() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 font-sans p-4">
       <Card className="w-full max-w-2xl shadow-xl">
         <CardHeader 
-          title="Finance Visualizer" 
+          title={
+            <div className="flex items-center gap-5">
+              <img 
+                src="/favicon.ico" 
+                alt="Logo" 
+                className="w-16 h-16 object-contain" 
+              />
+              <span>Finance Visualizer</span>
+            </div>
+          } 
           action={files.length > 0 && (
             <Button variant="danger" size="sm" onClick={handleNuke}>
               Delete All
