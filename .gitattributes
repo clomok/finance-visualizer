@@ -1,0 +1,43 @@
+# 1. default behavior: auto-detect text files and normalize line endings
+* text=auto
+
+# 2. CSV Data: Always treat as text (Critical for your app)
+*.csv text
+
+# 3. Code & Config: Force LF (Linux) line endings
+# This prevents "CRLF" issues when mapped into your Linux Docker container
+*.js      text eol=lf
+*.jsx     text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.css     text eol=lf
+*.json    text eol=lf
+*.html    text eol=lf
+*.md      text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+.prettierrc text eol=lf
+nginx.conf  text eol=lf
+
+# 4. Docker: These MUST be LF or the build might fail
+Dockerfile  text eol=lf
+.dockerignore text eol=lf
+
+# 5. Windows Scripts: Force CRLF (just in case you add any later)
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+# 6. Binary Assets: Tell git not to touch these
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.svg     text
+*.woff    binary
+*.woff2   binary
+
+# 7. GitHub UI: Treat lockfiles as "generated" 
+# This collapses them by default in Pull Requests so you don't see 5,000 line diffs
+package-lock.json linguist-generated=true
