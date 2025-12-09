@@ -3,7 +3,7 @@ import { parseCSV } from './utils/csvParser';
 import { saveFile, getAllFiles, deleteFile, clearAllFiles } from './utils/storage';
 import { FileRecord } from './types';
 import Dashboard from './components/Dashboard';
-import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown, FileText, CheckCircle2 } from 'lucide-react';
+import { Trash2, Upload, FileSpreadsheet, Home, TrendingUp, TrendingDown, FileText, CheckCircle2, Download } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { MultiSelect } from './components/ui/MultiSelect';
@@ -193,7 +193,7 @@ function App() {
           </div>
 
           {/* Info Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-10">
             
             {/* Usage Notes */}
             <div className="space-y-4">
@@ -232,7 +232,7 @@ function App() {
                 <FileSpreadsheet size={16} />
                 CSV Requirements
               </h2>
-              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-600 text-sm h-full shadow-sm">
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-600 text-sm h-full shadow-sm flex flex-col">
                 
                 <div className="mb-4">
                   <p className="mb-2 text-xs font-bold text-slate-800 uppercase tracking-wide">Required Columns</p>
@@ -246,7 +246,7 @@ function App() {
                   </div>
                 </div>
 
-                <div>
+                <div className="">
                   <p className="mb-2 text-xs font-bold text-slate-500 uppercase tracking-wide">Optional Columns</p>
                   <div className="grid grid-cols-1 gap-2">
                     {['Tags'].map(col => (
@@ -257,10 +257,36 @@ function App() {
                     ))}
                   </div>
                 </div>
-                
+
                 <p className="mt-4 text-[10px] text-slate-400 italic text-center">
                   * Column order does not matter.
                 </p>
+
+                {/* Demo Data Downloads */}
+                <div className="pt-4 border-t border-slate-200 mt-auto">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                    Need Sample Data?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <a 
+                      href="Tiller-Provided-Sample Data-1-Tier-Example.csv" 
+                      download="Tiller-Provided-Sample Data-1-Tier-Example.csv"
+                      className="inline-flex items-center justify-center h-8 px-3 text-xs font-medium bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 focus:ring-2 focus:ring-blue-100 transition-colors shadow-sm w-full"
+                    >
+                      <Download size={14} className="mr-1.5" />
+                      1-Tier Example
+                    </a>
+                    <a 
+                      href="Tiller-Provided-Sample Data-2-Tier-Example.csv" 
+                      download="Tiller-Provided-Sample Data-2-Tier-Example.csv"
+                      className="inline-flex items-center justify-center h-8 px-3 text-xs font-medium bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 focus:ring-2 focus:ring-blue-100 transition-colors shadow-sm w-full"
+                    >
+                      <Download size={14} className="mr-1.5" />
+                      2-Tier Example
+                    </a>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
