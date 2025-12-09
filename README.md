@@ -17,7 +17,50 @@ Before starting, ensure you have these installed:
 
 ---
 
-## First Time Install
+## 🚀 Easiest Way to Install (Seriously, it's Super Easy)
+
+**You do not need to download anything or use the command line. You can install this entire app directly inside GitHub.**
+
+### 1. Get your own copy
+
+1.  Make sure you are logged into GitHub.
+2.  Click the **Fork** button at the top right of this page.
+3.  Click **Create Fork** (leave the name as `finance-visualizer` so the code works automatically).
+
+### 2. Give it permission to build
+
+_GitHub is secure by default, so we need to give the "builder" permission to publish your site._
+
+1.  In your new repository, click the **Settings** tab (top right).
+2.  On the left sidebar, click **Actions** -> **General**.
+3.  Scroll down to the bottom section called **Workflow permissions**.
+4.  Select **Read and write permissions**.
+5.  Click **Save**.
+
+### 3. Turn on the Website
+
+1.  Stay in the **Settings** tab.
+2.  On the left sidebar, click **Pages**.
+3.  Under the **Build and deployment** section, look for **Source**.
+4.  Change the dropdown from "Deploy from a branch" to **GitHub Actions**.
+
+### 4. Launch the App
+
+1.  Click the **Actions** tab at the top of the page.
+2.  If you see a warning button that says _"I understand my workflows, go ahead and enable them"_, click it.
+3.  Click **Deploy to GitHub Pages** on the left sidebar.
+4.  Click the **Run workflow** button on the right side.
+5.  Wait for the spinning yellow circle to turn into a **Green Checkmark** ✅.
+
+### 5. Visit your site
+
+1.  Go back to **Settings** -> **Pages**.
+2.  Click the link displayed at the top (e.g., `https://your-username.github.io/finance-visualizer/`).
+3.  **Done!** Your personal version of the app is now running 100% in the browser and hosted by Github.
+
+---
+
+## Install on Your Hardware (Still Pretty Easy)
 
 1.  **Open your Terminal** (Command Prompt on Windows, Terminal on Mac/Linux).
 
